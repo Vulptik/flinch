@@ -2,7 +2,6 @@ use crate::{json, read, tasks, version};
 use anyhow::{Context, Result, ensure};
 use regex::Regex;
 use serde_json::Value;
-use sha1::Digest;
 use std::{
   collections::BTreeSet,
   fs,
@@ -516,7 +515,7 @@ fn vendored(dir: &Path, set: &Vendored) -> Result<()> {
     "{name} inventory changed; review new or removed files and update references.json"
   );
   for (file, sha1) in listed {
-    let actual = format!("{:x}", sha1::Sha1::digest(fs::read(dir.join(file))?));
+    let actual = crate::assets::sha1_hex(&fs::read(dir.join(file))?);
     ensure!(
       sha1.as_str() == Some(actual.as_str()),
       "{name} {file} differs from its reviewed upstream file"

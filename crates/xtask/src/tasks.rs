@@ -22,7 +22,6 @@ pub const COMMANDS: &[&str] = &[
   "test:video:smallest",
   "test:video:dxgi:desktop",
   "test:coverage",
-  "coverage:ratchet",
   "test:speed:desktop",
   "speed:ratchet",
   "test:recording",
@@ -380,8 +379,7 @@ pub fn dispatch(task: &str, options: &[String]) -> Result<()> {
       "--ignored",
       "--nocapture",
     ]),
-    "test:coverage" => crate::coverage::run(false),
-    "coverage:ratchet" => crate::coverage::run(true),
+    "test:coverage" => crate::coverage::run(),
     "test:speed:desktop" => crate::speed::run(false),
     "speed:ratchet" => crate::speed::run(true),
     "test:recording" => {

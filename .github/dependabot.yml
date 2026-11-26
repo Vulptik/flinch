@@ -22,3 +22,7 @@ updates:
       - dependency-name: "i-slint-*"
       # smallpeg is vendored and patched too.
       - dependency-name: "smallpeg"
+      # windows-core and windows-numerics must match the windows crate built on them; they move
+      # by hand together with windows.
+      - dependency-name: "windows-core"
+      - dependency-name: "windows-numerics"

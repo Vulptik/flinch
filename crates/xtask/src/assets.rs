@@ -72,8 +72,15 @@ fn tracked_images() -> Result<Vec<PathBuf>> {
   paths.sort();
   Ok(paths)
 }
+/// Lowercase hex SHA-1, as `git hash-object` and the provenance records write it.
+pub(crate) fn sha1_hex(bytes: &[u8]) -> String {
+  Sha1::digest(bytes)
+    .iter()
+    .map(|byte| format!("{byte:02x}"))
+    .collect()
+}
 fn fingerprint(path: &Path) -> Result<String> {
-  Ok(format!("{:x}", Sha1::digest(fs::read(path)?)))
+  Ok(sha1_hex(&fs::read(path)?))
 }
 fn record(group: &str) -> Result<()> {
   let mut manifest = json(PROVENANCE)?;

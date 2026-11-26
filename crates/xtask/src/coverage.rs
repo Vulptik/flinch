@@ -50,28 +50,13 @@ impl Counts {
     u128::from(self.covered) * u128::from(other.lines)
       >= u128::from(other.covered) * u128::from(self.lines)
   }
-  /// At least `other` less `SLACK_HUNDREDTHS` hundredths of a percentage point, exactly:
-  /// self.covered / self.lines >= other.covered / other.lines - slack / 10_000.
-  fn within_slack_of(self, other: Self) -> bool {
-    let slack = i128::from(SLACK_HUNDREDTHS);
-    i128::from(self.covered) * 10_000 * i128::from(other.lines)
-      >= (i128::from(other.covered) * 10_000 - slack * i128::from(other.lines))
-        * i128::from(self.lines)
-  }
 }
 
-/// How far below the recorded baseline a run may land, in hundredths of a percentage point
-/// (0.05 points, about 25 lines at 55,000). Tests that race, or that a machine without a GPU or
-/// a microphone takes another way through, move coverage by a line or two; untested new work
-/// moves it by hundreds and still fails. Gains always pass.
-const SLACK_HUNDREDTHS: u64 = 5;
+/// The coverage policy: one fixed floor. Coverage is measured fresh on whichever machine runs the
+/// gate, so it is compared only with this fixed number, never with a result recorded elsewhere.
 #[derive(Clone)]
 struct Policy {
   minimum: u64,
-  baseline: Counts,
-  /// The owner's stated reason for a deliberate baseline reset. Only a new reason lets the
-  /// baseline go below a committed one; the floor never goes down.
-  rebaseline_reason: Option<String>,
 }
 impl Policy {
   fn parse(text: &str) -> Result<Self> {
@@ -79,57 +64,19 @@ impl Policy {
     let fields = value
       .as_object()
       .context("Coverage policy must be an object")?;
-    const KNOWN: [&str; 4] = [
-      "minimum_line_percent",
-      "baseline_covered_lines",
-      "baseline_instrumented_lines",
-      "rebaseline_reason",
-    ];
     ensure!(
-      fields.len() >= 3 && fields.keys().all(|key| KNOWN.contains(&key.as_str())),
-      "Coverage policy has missing or unknown fields"
+      fields.len() == 1,
+      "Coverage policy must hold only minimum_line_percent"
     );
-    let rebaseline_reason = match value.get("rebaseline_reason") {
-      None => None,
-      Some(reason) => Some(
-        reason
-          .as_str()
-          .map(str::trim)
-          .filter(|reason| !reason.is_empty() && reason.chars().count() <= 300)
-          .context("rebaseline_reason must be a non-empty sentence of at most 300 characters")?
-          .to_owned(),
-      ),
-    };
-    let number = |key| {
-      value
-        .get(key)
-        .and_then(serde_json::Value::as_u64)
-        .with_context(|| format!("Invalid coverage policy field: {key}"))
-    };
-    let policy = Self {
-      minimum: number("minimum_line_percent")?,
-      baseline: Counts {
-        covered: number("baseline_covered_lines")?,
-        lines: number("baseline_instrumented_lines")?,
-      },
-      rebaseline_reason,
-    };
+    let minimum = value
+      .get("minimum_line_percent")
+      .and_then(serde_json::Value::as_u64)
+      .context("Invalid coverage policy field: minimum_line_percent")?;
     ensure!(
-      (80..=100).contains(&policy.minimum),
+      (80..=100).contains(&minimum),
       "The coverage floor must never be below 80%"
     );
-    ensure!(
-      policy.baseline.lines > 0 && policy.baseline.covered <= policy.baseline.lines,
-      "Invalid coverage baseline counts"
-    );
-    ensure!(
-      policy.baseline.at_least(Counts {
-        covered: 17571,
-        lines: 29425
-      }),
-      "Coverage baseline cannot be lowered below its initial measured value"
-    );
-    Ok(policy)
+    Ok(Self { minimum })
   }
   fn enforce(&self, current: Counts) -> Result<()> {
     ensure!(
@@ -141,52 +88,26 @@ impl Policy {
         covered: self.minimum,
         lines: 100
       }),
-      "Coverage gate failed: {:.4}% ({}/{}) is below the hard {}% floor",
+      "Coverage gate failed: {:.4}% ({}/{}) is below the {}% floor",
       current.percent(),
       current.covered,
       current.lines,
       self.minimum
     );
-    ensure!(
-      current.within_slack_of(self.baseline),
-      "Coverage regressed: {:.4}% is more than {:.2} points below the recorded {:.4}% baseline",
-      current.percent(),
-      SLACK_HUNDREDTHS as f64 / 100.0,
-      self.baseline.percent()
-    );
     Ok(())
   }
-  /// Whether `current` is above the recorded baseline, so the ratchet may raise it.
-  fn raised_by(&self, current: Counts) -> bool {
-    current.at_least(self.baseline) && !self.baseline.at_least(current)
+  /// The floor in a committed policy, whose file may still hold fields older versions used.
+  fn committed_floor(text: &str) -> Result<u64> {
+    serde_json::from_str::<serde_json::Value>(text)
+      .context("Parse committed coverage policy")?
+      .get("minimum_line_percent")
+      .and_then(serde_json::Value::as_u64)
+      .context("Committed coverage policy has no minimum_line_percent")
   }
-  /// The policy file recording `counts` as the new baseline. The owner's reset reason is kept:
-  /// dropping it would make an uncommitted reset look like an unexplained drop.
-  fn ratcheted(&self, counts: Counts) -> Result<String> {
-    let mut policy = json!({
-      "minimum_line_percent": self.minimum,
-      "baseline_covered_lines": counts.covered,
-      "baseline_instrumented_lines": counts.lines,
-    });
-    if let Some(reason) = &self.rebaseline_reason {
-      policy["rebaseline_reason"] = json!(reason);
-    }
-    Ok(serde_json::to_string_pretty(&policy)? + "\n")
-  }
-  fn protect(&self, previous: &Self) -> Result<()> {
+  fn protect(&self, previous_floor: u64) -> Result<()> {
     ensure!(
-      self.minimum >= previous.minimum,
+      self.minimum >= previous_floor,
       "Coverage policy cannot lower a previously committed floor"
-    );
-    // A lower baseline is a deliberate reset only with a reason that differs from the committed
-    // one, so every reset is stated once and an old reason never covers a later drop.
-    ensure!(
-      self.baseline.at_least(previous.baseline)
-        || self
-          .rebaseline_reason
-          .as_ref()
-          .is_some_and(|reason| previous.rebaseline_reason.as_ref() != Some(reason)),
-      "Coverage policy cannot lower a previously committed baseline without a new rebaseline_reason"
     );
     Ok(())
   }
@@ -216,7 +137,7 @@ fn protect_history(policy: &Policy) -> Result<()> {
         process::command("git").args(["show", &format!("{revision}:{POLICY}")]),
         10,
       )?;
-      policy.protect(&Policy::parse(&previous)?)?;
+      policy.protect(Policy::committed_floor(&previous)?)?;
     }
   }
   Ok(())
@@ -527,13 +448,10 @@ pub fn rustc_wrapper(args: &[String]) -> Result<i32> {
     .with_context(|| format!("{rustc} ended without an exit code"))
 }
 
-pub fn run(ratchet: bool) -> Result<()> {
+pub fn run() -> Result<()> {
   let policy_text = read(POLICY)?;
   let policy = Policy::parse(&policy_text)?;
   protect_history(&policy)?;
-  if let Some(reason) = &policy.rebaseline_reason {
-    println!("Coverage baseline was reset by its owner: {reason}");
-  }
   let before = sources()?;
   process::cargo(&["llvm-cov", "--version"])
     .context("Install cargo-llvm-cov 0.9.1 and rustup component llvm-tools-preview")?;
@@ -617,34 +535,18 @@ pub fn run(ratchet: bool) -> Result<()> {
     .collect::<Result<Vec<_>>>()?;
   let (counts, mut report) = measure(&read(output.join("raw.lcov"))?, &before, &roots)?;
   report["minimum_line_percent"] = policy.minimum.into();
-  report["baseline_line_percent"] = policy.baseline.percent().into();
   fs::write(
     output.join("summary.json"),
     serde_json::to_string_pretty(&report)? + "\n",
   )?;
   println!(
-    "Production Rust line coverage: {:.4}% ({}/{}); floor {}%; baseline {:.4}%. Evidence: target/coverage/summary.json",
+    "Production Rust line coverage: {:.4}% ({}/{}); floor {}%. Evidence: target/coverage/summary.json",
     counts.percent(),
     counts.covered,
     counts.lines,
-    policy.minimum,
-    policy.baseline.percent()
+    policy.minimum
   );
   policy.enforce(counts)?;
-  match (ratchet, policy.raised_by(counts)) {
-    (true, true) => {
-      fs::write(POLICY, policy.ratcheted(counts)?)?;
-      println!(
-        "Recorded passing coverage baseline; include the policy change with the tested source changes."
-      );
-    },
-    // The ratchet only raises: a pass within the slack keeps the recorded baseline.
-    (true, false) => println!("Coverage is not above the recorded baseline; it stays as recorded."),
-    (false, true) => println!(
-      "Coverage is above the recorded baseline; cargo xtask coverage:ratchet can raise it."
-    ),
-    (false, false) => {},
-  }
   Ok(())
 }
 

@@ -95,7 +95,6 @@ mod cli_tests {
       vec!["check:quick", "--desktop"],
       vec!["test:coverage", "--skip-tests"],
       vec!["test:coverage", "--minimum", "0"],
-      vec!["coverage:ratchet", "--force"],
       vec!["test:speed:desktop", "--runs", "5"],
       vec!["speed:ratchet", "--force"],
       vec!["unknown-task"],
