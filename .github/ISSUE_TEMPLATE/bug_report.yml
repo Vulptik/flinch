@@ -1,0 +1,45 @@
+name: Bug report
+description: Something in Flinch doesn't work as it should.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Press Ctrl+PrtSc
+        2. Select an area
+        3. …
+    validations:
+      required: true
+  - type: textarea
+    id: info
+    attributes:
+      label: Diagnostic information
+      description: In Flinch, open **Settings → About & Help** and press **Copy Information**, then paste it here. It includes the Flinch version, Windows build, displays and graphics.
+      render: text
+    validations:
+      required: true
+  - type: dropdown
+    id: channel
+    attributes:
+      label: Where did you install Flinch from?
+      options:
+        - Microsoft Store
+        - Installer
+        - Built from source
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (optional)
+      description: "**Open Logs** in About & Help shows them. Check them for anything private before pasting."
+      render: text

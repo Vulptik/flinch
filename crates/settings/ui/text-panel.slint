@@ -1,0 +1,116 @@
+import { Copy } from "copy.slint";
+import { Typography, Interaction, Icon, ClickSurface, SmallButton } from "widgets.slint";
+import { Palette, TextEdit } from "std-widgets.slint";
+
+export enum TextPanelNotice { none, empty, too-large, timed-out, failed, copy-failed }
+
+// Editable review of recognized text. Nothing reaches the clipboard until Copy.
+export component TextPanelWindow inherits Window {
+    init => { Palette.color-scheme = ColorScheme.dark; Interaction.editable = true; }
+    title: Copy.hotkeys_copy_text;
+    icon: @image-url("assets/logo.svg");
+    out property <length> initial-width: 520px;
+    out property <length> initial-height: 380px;
+    preferred-width: root.initial-width; preferred-height: root.initial-height;
+    min-width: root.initial-width; max-width: root.initial-width;
+    min-height: root.initial-height; max-height: root.initial-height;
+    no-frame: true; resize-border-width: 0px;
+    background: #1c1c1f;
+    default-font-family: Typography.text-family; default-font-size: 14px;
+    in-out property <int> language-index <=> Copy.language;
+    in-out property <string> text;
+    in property <bool> reading: false;
+    in property <bool> copying: false;
+    in property <bool> copied: false;
+    in property <TextPanelNotice> notice: TextPanelNotice.none;
+    callback copy-request(string);
+    callback close-request;
+    public function focus-text() { editor.focus(); editor.select-all(); }
+    private property <bool> has-text: root.text != "";
+    private property <bool> can-copy: root.has-text && !root.reading && !root.copying && !root.copied;
+    private property <bool> editing: !root.reading && root.notice != TextPanelNotice.empty && root.notice != TextPanelNotice.too-large && root.notice != TextPanelNotice.timed-out && root.notice != TextPanelNotice.failed;
+    private property <string> status:
+        root.notice == TextPanelNotice.empty ? Copy.ocr_empty :
+        root.notice == TextPanelNotice.too-large ? Copy.ocr_too_large :
+        root.notice == TextPanelNotice.timed-out ? Copy.ocr_timed_out :
+        Copy.ocr_failed;
+
+    FocusScope {
+        capture-key-pressed(event) => {
+            if event.text == Key.Escape { root.close-request(); return accept; }
+            if event.modifiers.control && event.text == "\n" && root.can-copy { root.copy-request(root.text); return accept; }
+            return reject;
+        }
+        VerticalLayout {
+            padding: 8px; spacing: 8px;
+            HorizontalLayout {
+                height: 34px; spacing: 8px;
+                WindowMoveArea {
+                    horizontal-stretch: 1;
+                    Image { source: @image-url("assets/logo.svg"); x: 4px; y: 3px; width: 28px; height: 28px; image-fit: contain; }
+                    Text { x: 40px; height: parent.height; text: Copy.hotkeys_copy_text; color: #f1f1f2; font-family: Typography.display-family; font-size: 14px; font-weight: 600; vertical-alignment: center; }
+                }
+                close-button := ClickSurface {
+                    width: 34px; height: 34px; border-radius: 8px;
+                    accessible-label: Copy.native_settings_close;
+                    background: self.hovered ? #ffffff21 : transparent;
+                    activated => { root.close-request(); }
+                    Icon { x: 10px; y: 10px; source: @image-url("assets/x.svg"); width: 14px; height: 14px; colorize: close-button.hovered ? #f1f1f2 : #a8a8ae; }
+                }
+            }
+            body := Rectangle {
+                vertical-stretch: 1;
+                border-radius: 12px; background: #111113; clip: true;
+                if root.reading: shimmer := Rectangle {
+                    // One band crosses every line, so they read as a single sweep.
+                    private property <length> band-width: 160px;
+                    private property <length> band-x: Interaction.motion-enabled
+                        ? Math.mod(animation-tick() / 1300ms, 1) * (body.width + self.band-width) - self.band-width
+                        : -self.band-width;
+                    for fraction[index] in [0.86, 0.68, 0.78, 0.52]: Rectangle {
+                        x: 20px; y: 28px + index * 30px;
+                        width: (body.width - 40px) * fraction; height: 12px;
+                        border-radius: 6px; background: #ffffff0f; clip: true;
+                        Rectangle {
+                            x: shimmer.band-x - parent.x; width: shimmer.band-width;
+                            background: @linear-gradient(90deg, #ffffff00 0%, #ffffff26 50%, #ffffff00 100%);
+                        }
+                    }
+                    Text {
+                        x: 20px; y: body.height - 40px; height: 20px;
+                        text: Copy.ocr_reading; color: #a8a8ae; font-size: 13px; vertical-alignment: center;
+                    }
+                }
+                if !root.reading && !root.editing: Text {
+                    x: 24px; width: parent.width - 48px; height: parent.height;
+                    text: root.status; color: #a8a8ae; font-size: 14px; wrap: word-wrap;
+                    horizontal-alignment: center; vertical-alignment: center;
+                }
+                // Oversized so the rounded body clips Fluent's frame and focus line.
+                editor := TextEdit {
+                    x: -4px; y: -4px; width: parent.width + 8px; height: parent.height + 8px;
+                    visible: root.editing;
+                    opacity: root.editing ? 1 : 0;
+                    animate opacity { duration: Interaction.motion-enabled ? 140ms : 0ms; easing: ease-out; }
+                    text <=> root.text;
+                    font-size: 14px;
+                    wrap: word-wrap;
+                }
+            }
+            HorizontalLayout {
+                height: 34px; spacing: 8px;
+                Text {
+                    horizontal-stretch: 1; vertical-alignment: center; overflow: elide;
+                    text: root.notice == TextPanelNotice.copy-failed ? Copy.ocr_copy_failed : "";
+                    color: #ef6b6b; font-size: 13px;
+                }
+                SmallButton {
+                    primary: true; enabled: root.can-copy;
+                    opacity: root.can-copy || root.copied ? 1 : 0.5;
+                    label: root.copied ? Copy.ocr_copied : Copy.ocr_copy;
+                    activated => { root.copy-request(root.text); }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,55 @@
+# Cargo build output (coverage reports land in target/coverage/).
+# Cargo.lock is tracked: Flinch is an application.
+/target/
+# Pinned build tools (WiX for the installer); kept out of target/ so cargo clean leaves them.
+/.tools/
+**/target/
+**/*.rs.bk
+
+# Windows SDK build tools restored by winapp (winapp.yaml is tracked).
+/.winapp/
+
+# Artifact output is local unless reviewed. Every exception below must match
+# scripts/repository-artifacts.json; `cargo xtask check:contracts` enforces both.
+/artifacts/**
+!/artifacts/
+# Reviewed benchmark records go here, each with its own exception.
+!/artifacts/performance/
+!/artifacts/store/
+!/artifacts/store/logos/
+!/artifacts/store/logos/app-icon-150.png
+!/artifacts/store/logos/app-icon-300.png
+!/artifacts/store/logos/app-icon-71.png
+
+# Packages and signing material are never committed.
+*.msix
+*.msixbundle
+*.appx
+*.msi
+*.pfx
+*.p12
+
+# Secrets and machine-local editor and tool settings (they can hold personal paths)
+/.claude/
+.env
+.env.*
+*.local
+
+# Logs and scratch files
+*.log
+*.tmp
+*.bak
+*.orig
+*.rej
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Windows shell files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/

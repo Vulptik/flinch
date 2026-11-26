@@ -1,0 +1,7 @@
+# Clippy configuration for Flinch Desktop
+
+# Set pedantic and deny certain lints
+cognitive-complexity-threshold = 30
+
+# Allow certain lints that may be too strict
+# (Add specific allows here as needed)

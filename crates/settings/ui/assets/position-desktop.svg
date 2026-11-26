@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100" viewBox="0 0 160 100">
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#181a1e"/><stop offset="1" stop-color="#24272c"/></linearGradient>
+    <linearGradient id="wave" x2="0" y2="1"><stop stop-color="#383c43"/><stop offset="1" stop-color="#191b20"/></linearGradient>
+  </defs>
+  <rect width="160" height="100" fill="url(#bg)"/>
+  <path d="M0 90 L101 28 L160 10 V92 H0Z" fill="url(#wave)" opacity=".5"/>
+  <g fill="#536575" opacity=".65">
+    <path d="M91 29 L111 26 V46 H91Z"/>
+    <path d="M114 25 L139 21 V46 H114Z"/>
+    <path d="M91 49 H111 V69 L91 66Z"/>
+    <path d="M114 49 H139 V73 L114 69Z"/>
+  </g>
+  <rect y="92" width="160" height="8" fill="#17191d"/>
+  <g fill="#555a63"><rect x="57" y="94" width="5" height="4" rx="1"/><rect x="65" y="94" width="4" height="4" rx="1"/><rect x="72" y="94" width="4" height="4" rx="1"/><rect x="79" y="94" width="4" height="4" rx="1"/><rect x="86" y="94" width="4" height="4" rx="1"/><rect x="93" y="94" width="4" height="4" rx="1"/></g>
+</svg>

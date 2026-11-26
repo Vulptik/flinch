@@ -1,0 +1,161 @@
+name: Pre-release check
+
+# Run manually on main (or a hotfix branch) before tagging, and again automatically on the
+# release tag. On a tag it also builds the direct-download installer, attests where it came from
+# and attaches it to a draft GitHub release for the maintainer to publish. The Store MSIX is built
+# and submitted locally from the same tag.
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+
+permissions:
+  contents: read
+
+jobs:
+  # Run the full test suite before releasing
+  pre-release-tests:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Release tag matches the app version
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          $match = Select-String -LiteralPath Cargo.toml -Pattern '^version = "([^"]+)"$' | Select-Object -First 1
+          if (-not $match) { throw 'Cargo.toml has no package version' }
+          $expected = 'v' + $match.Matches[0].Groups[1].Value
+          if ($env:TAG -ne $expected) { throw "Tag $env:TAG does not match app version $expected" }
+
+      - name: Setup Rust
+        # Installs the exact Rust, components and target named in rust-toolchain.toml.
+        run: rustup toolchain install
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Full repository checks
+        run: cargo xtask check:all
+
+      - name: Install pinned coverage runner
+        run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+
+      - name: Enforce production coverage floor and baseline
+        run: cargo xtask test:coverage
+
+      - name: Retain coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-production-coverage
+          path: target/coverage/
+          if-no-files-found: error
+
+      - name: Retain settings probe evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-settings-checks
+          path: artifacts/performance/settings-checks/
+          if-no-files-found: ignore
+
+      - name: Rust unit tests
+        working-directory: .
+        run: cargo test --lib -- --test-threads=1
+
+      - name: Native recorder against a real engine worker with synthetic sources
+        timeout-minutes: 20
+        run: cargo xtask test:recording
+
+      - name: Rust integration tests
+        run: cargo xtask test:run --integration-only
+
+  build:
+    needs: [pre-release-tests]
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Setup Rust
+        # Installs the exact Rust, components and target named in rust-toolchain.toml.
+        run: rustup toolchain install
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      # Checks that the Store package stages; the MSIX itself is built and submitted locally.
+      - name: Stage native MSIX inputs
+        run: cargo xtask pack:msix --stage-only
+
+  installer:
+    needs: [pre-release-tests]
+    if: github.ref_type == 'tag'
+    runs-on: windows-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Setup Rust
+        # Installs the exact Rust, components and target named in rust-toolchain.toml.
+        run: rustup toolchain install
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Cache pinned WiX tools
+        uses: actions/cache@v6
+        with:
+          path: .tools/installer
+          key: wix-${{ hashFiles('scripts/setup-installer-tools.ps1') }}
+
+      - name: Fetch pinned WiX tools
+        run: cargo xtask installer:tools
+
+      - name: Build the installer
+        run: cargo xtask pack:installer
+
+      - name: Attest where the installer was built
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: |
+            artifacts/installer/working/build/Flinch_*_x64-setup.exe
+            artifacts/installer/working/build/version.json
+
+      # A draft is invisible to installed copies until the maintainer publishes it.
+      - name: Attach the installer to a draft release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $build = 'artifacts/installer/working/build'
+          $version = $env:TAG.Substring(1)
+          $setup = "$build/Flinch_$($version)_x64-setup.exe"
+          $files = @($setup, "$setup.sha256", "$build/version.json")
+          foreach ($file in $files) { if (-not (Test-Path -LiteralPath $file)) { throw "Missing release file $file" } }
+          gh release create $env:TAG @files --draft --verify-tag --title "Flinch $version" --notes "Write the release notes for $version here before publishing."
+          if ($LASTEXITCODE -ne 0) { throw "Creating the draft release failed ($LASTEXITCODE)" }

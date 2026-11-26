@@ -1,0 +1,6 @@
+{
+  "baseline_covered_lines": 45614,
+  "baseline_instrumented_lines": 55428,
+  "minimum_line_percent": 80,
+  "rebaseline_reason": "Re-measured on 2026-11-16 after moving to cargo-llvm-cov 0.9.1 and Rust 1.100, which count lines differently; no tests were removed."
+}

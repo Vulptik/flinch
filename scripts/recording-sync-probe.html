@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Flinch recording synchronization probe</title>
+<style>
+  html,body{margin:0;background:#080808;color:#fff;font:24px system-ui;height:100%}
+  main{position:absolute;inset:0;display:grid;place-content:center;text-align:center;gap:20px}
+  button{font:inherit;padding:12px 24px} small{font-size:16px} #timer{font-variant-numeric:tabular-nums}
+</style>
+<main>
+  <h1>Recording synchronization probe</h1>
+  <div id="timer">10 minutes · numbered flashes and audio pulses</div>
+  <button id="start">Start fullscreen probe with audio</button>
+  <small>Explicit desktop test: this plays sound and displays brief colored flashes.<br>Start Flinch recording before starting the probe. Escape leaves fullscreen.</small>
+</main>
+<script>
+  const start = document.querySelector('#start');
+  const timer = document.querySelector('#timer');
+  let audio;
+  start.onclick = async () => {
+    start.disabled = true;
+    await document.documentElement.requestFullscreen();
+    audio = new AudioContext();
+    await audio.resume();
+    if(typeof audio.getOutputTimestamp !== 'function') {
+      timer.textContent='This browser cannot provide the required audio output clock. Use Microsoft Edge.';
+      await audio.close(); return;
+    }
+    const origin = audio.currentTime + 3;
+    const marks = Array.from({length:20}, (_,i) => ({time:1+i*30,id:i+1}));
+    for(const mark of marks){
+      const oscillator = audio.createOscillator();
+      const gain = audio.createGain();
+      oscillator.frequency.value = 600+(mark.id%10)*100;
+      gain.gain.setValueAtTime(0,origin+mark.time);
+      gain.gain.linearRampToValueAtTime(.25,origin+mark.time+.005);
+      gain.gain.setValueAtTime(.25,origin+mark.time+.095);
+      gain.gain.linearRampToValueAtTime(0,origin+mark.time+.1);
+      oscillator.connect(gain).connect(audio.destination);
+      oscillator.start(origin+mark.time); oscillator.stop(origin+mark.time+.11);
+    }
+    start.hidden = true;
+    function draw(){
+      const stamp = audio.getOutputTimestamp();
+      const elapsed = stamp.contextTime+(performance.now()-stamp.performanceTime)/1000-origin;
+      const active = marks.find(mark => elapsed>=mark.time && elapsed<mark.time+.1);
+      document.body.style.background = active ? `rgb(${64+(active.id%10)*12},8,8)` : '#080808';
+      timer.textContent = `${Math.max(0,elapsed).toFixed(3)} s${active ? ` · marker ${active.id}` : ''}`;
+      if(elapsed<600) requestAnimationFrame(draw);
+      else { document.body.style.background='#080808'; timer.textContent='Probe complete · stop recording'; audio.close(); }
+    }
+    requestAnimationFrame(draw);
+  };
+</script>
+</html>

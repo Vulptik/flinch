@@ -1,0 +1,7 @@
+# Every build, local and CI, uses this exact Rust so a new stable release can't change lints,
+# formatting or coverage on its own. Update it on purpose, then fix what the new version reports.
+[toolchain]
+channel = "1.100.0"
+components = ["clippy", "rustfmt", "llvm-tools-preview"]
+targets = ["x86_64-pc-windows-msvc"]
+profile = "minimal"

@@ -1,0 +1,402 @@
+import { Copy } from "copy.slint";
+import { Typography, Interaction, Icon, ClickSurface, NavItem, SmallButton, ErrorMarker, InlineError } from "widgets.slint";
+import { Pages, SettingsState } from "pages.slint";
+import { Palette } from "std-widgets.slint";
+export { SettingsState } from "pages.slint";
+export { TextPanelWindow, TextPanelNotice } from "text-panel.slint";
+export { TrayMenuWindow, TrayRecentWindow, TrayChoiceWindow, TrayMenuRow, TrayRecentRow } from "tray-menu.slint";
+export { Typography, Interaction, TemplateEditing, TokenInsertion, TemplateBlock } from "widgets.slint";
+// Use the installed Windows variable font with optical faces for small text and display titles.
+
+export struct SearchResult { label: string, section: string, page: int, target: string }
+
+component ConfirmationDialog inherits Rectangle {
+    in property <bool> open;
+    in property <string> heading;
+    in property <string> detail;
+    in property <string> cancel-label;
+    in property <string> confirm-label;
+    out property <bool> active: root.open || root.dialog-progress > 0;
+    callback dismissed(bool);
+    public function cancel() { root.dismiss("cancel"); }
+    property <bool> dialog-closing: false;
+    property <bool> dialog-open: root.open;
+    property <bool> dialog-discard-selected: false;
+    property <string> dialog-action;
+    property <float> dialog-progress: root.dialog-open && !root.dialog-closing ? 1 : 0;
+    animate dialog-progress { duration: Interaction.motion-enabled ? 160ms : 0ms; easing: ease-out; }
+    function dismiss(action: string) {
+        if root.dialog-open && !root.dialog-closing {
+            root.dialog-action = action;
+            root.dialog-closing = true;
+        }
+    }
+    changed dialog-open => {
+        if root.dialog-open {
+            root.dialog-discard-selected = false;
+            dialog-focus.running = true;
+        } else {
+            dialog-focus.running = false;
+            root.dialog-closing = false;
+            root.dialog-action = "";
+        }
+    }
+    dialog-focus := Timer {
+        running: false; interval: 1ms;
+        triggered => {
+            self.running = false;
+            if root.dialog-open && !root.dialog-closing { dialog-keys.focus(); }
+        }
+    }
+    dialog-exit := Timer {
+        running: root.dialog-closing;
+        interval: 160ms;
+        triggered => {
+            if root.dialog-open && root.dialog-closing && root.dialog-action != "" {
+                root.dismissed(root.dialog-action == "confirm");
+            }
+            root.dialog-closing = false;
+        }
+    }
+    Rectangle {
+        visible: root.open || root.dialog-progress > 0;
+        opacity: root.dialog-progress;
+        background: #00000080;
+        TouchArea {}
+        dialog-keys := FocusScope {
+            enabled: root.dialog-open && !root.dialog-closing;
+            key-pressed(event) => {
+                if event.text == Key.Tab {
+                    Interaction.keyboard-mode = true;
+                    root.dialog-discard-selected = !root.dialog-discard-selected;
+                    dialog-keys.focus();
+                    return accept;
+                }
+                if event.text == "\n" || event.text == " " {
+                    root.dismiss(root.dialog-discard-selected ? "confirm" : "cancel");
+                    return accept;
+                }
+                if event.text == Key.Escape { root.dismiss("cancel"); return accept; }
+                return reject;
+            }
+            Rectangle {
+                x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2 + (1 - root.dialog-progress) * 6px;
+                width: 420px; height: root.detail == "" ? 110px : 154px; background: #161618; border-radius: 8px; clip: true;
+                VerticalLayout {
+                    padding: 16px; spacing: 12px;
+                    Rectangle {
+                        height: 32px;
+                        Text { x: 0px; y: 0px; width: parent.width - 24px; height: parent.height; text: root.heading; color: #f1f1f2; font-size: 14px; font-weight: 500; wrap: word-wrap; vertical-alignment: center; }
+                    }
+                    if root.detail != "": Text { height: 32px; text: root.detail; color: #a1a1ab; font-size: 13px; wrap: word-wrap; vertical-alignment: center; }
+                    HorizontalLayout { height: 34px; alignment: end; spacing: 8px;
+                        cancel-button := SmallButton {
+                            enabled: !root.dialog-closing; label: root.cancel-label;
+                            border-width: dialog-keys.has-focus && Interaction.keyboard-mode && !root.dialog-discard-selected ? 2px : 1px;
+                            border-color: dialog-keys.has-focus && Interaction.keyboard-mode && !root.dialog-discard-selected ? #ff6060 : #ffffff17;
+                            activated => { root.dismiss("cancel"); }
+                        }
+                        confirm-button := SmallButton {
+                            enabled: !root.dialog-closing; primary: true; label: root.confirm-label;
+                            border-width: dialog-keys.has-focus && Interaction.keyboard-mode && root.dialog-discard-selected ? 2px : 1px;
+                            border-color: dialog-keys.has-focus && Interaction.keyboard-mode && root.dialog-discard-selected ? #ff6060 : #ef4b4b;
+                            activated => { root.dismiss("confirm"); }
+                        }
+                    }
+                }
+                dialog-close := ClickSurface {
+                    x: parent.width - 32px; y: 0px; width: 32px; height: 32px;
+                    background: transparent;
+                    accessible-label: root.cancel-label;
+                    Icon { x: 9px; y: 9px; source: @image-url("assets/x.svg"); width: 14px; height: 14px; colorize: dialog-close.hovered ? #ffffff : #ffffff99; }
+                    activated => { root.dismiss("cancel"); }
+                }
+            }
+        }
+    }
+}
+
+export component SettingsWindow inherits Window {
+    init => { Palette.color-scheme = ColorScheme.dark; }
+    title: "Flinch";
+    icon: @image-url("assets/logo.svg");
+    out property <length> initial-width: 640px;
+    out property <length> initial-height: 640px;
+    preferred-width: root.initial-width; preferred-height: root.initial-height;
+    min-width: root.initial-width; max-width: root.initial-width;
+    min-height: root.initial-height; max-height: root.initial-height;
+    no-frame: true; resize-border-width: 0px;
+    background: #1c1c1f;
+    default-font-family: Typography.text-family; default-font-size: 14px;
+    in-out property <int> page <=> SettingsState.page;
+    in-out property <bool> boot <=> SettingsState.boot;
+    in-out property <bool> notifications <=> SettingsState.notifications;
+    in-out property <bool> confirming-reset <=> SettingsState.confirming-reset;
+    in-out property <int> language-index <=> Copy.language;
+    in-out property <bool> search-expanded: false;
+    in-out property <string> query;
+    in property <[SearchResult]> search-results;
+    private property <int> search-index: 0;
+    callback search-request(string);
+    callback search-select(SearchResult);
+    search-select(result) => {
+        root.navigate(result.page);
+        if result.label == Copy.system_filename_template { SettingsState.filename-customization-expanded = true; }
+        if result.label == Copy.system_single_folder_subfolder_template { SettingsState.subfolder-customization-expanded = true; }
+        root.search-expanded = false; Interaction.highlight = result.label; Interaction.search-generation += 1; flash.restart();
+    }
+    // Both the custom close button and Windows close requests go through the
+    // presenter so pending saves can finish or surface a failure before hiding.
+    callback close-request;
+    callback cancel-reset;
+    cancel-reset => { reset-confirmation.cancel(); }
+    callback page-changed;
+    changed query => { root.search-index = 0; root.search-request(root.query); }
+    changed language-index => { root.search-request(root.query); }
+    private property <bool> modal-open: root.confirming-reset || SettingsState.confirm-invalid-close;
+    changed modal-open => { Interaction.allow-search-focus = !root.modal-open; }
+    private property <bool> page-ready: true;
+    private property <float> page-progress: page-ready ? 1 : 0;
+    animate page-progress { duration: Interaction.motion-enabled && root.page-ready ? 150ms : 0ms; easing: ease-out; }
+    changed page => { SettingsState.action-error = ""; SettingsState.action-message = ""; scroller.content-y = 0px; root.page-ready = !Interaction.motion-enabled; if Interaction.motion-enabled { page-entrance.restart(); } root.page-changed(); }
+    page-entrance := Timer { interval: 16ms; triggered => { root.page-ready = true; self.running = false; } }
+    private property <int> target-generation: Interaction.target-generation;
+    out property <length> content-scroll-y: scroller.content-y;
+    out property <length> scroll-thumb-x: scroll-thumb.absolute-position.x + scroll-thumb.width / 2;
+    out property <length> scroll-thumb-y: scroll-thumb.absolute-position.y + scroll-thumb.height / 2;
+    out property <length> save-retry-x: save-retry.absolute-position.x + save-retry.width / 2;
+    out property <length> save-retry-y: save-retry.absolute-position.y + save-retry.height / 2;
+    out property <bool> save-notice-visible: SettingsState.save-error != "" || SettingsState.close-timeout;
+    changed target-generation => {
+        scroller.content-y = max(scroller.height - scroller.content-height, min(0px, scroller.content-y - Interaction.target-y + scroller.absolute-position.y + 20px));
+    }
+    function navigate(target: int) { root.page = target; root.query = ""; root.confirming-reset = false; }
+    function open-search() { root.search-expanded = true; search-focus.restart(); }
+    // Focus only after the newly visible input has entered the layout.
+    search-focus := Timer { interval: 16ms; triggered => { self.running = false; if root.search-expanded && !root.modal-open { search.focus(); } } }
+    function close-search() { search-focus.stop(); root.search-expanded = false; root.query = ""; frame-keys.focus(); }
+    private property <length> search-popup-height: root.search-results.length == 0 ? 56px : min(7, root.search-results.length) * 44px + 8px;
+
+    frame := Rectangle {
+        background: #1c1c1f; border-radius: 8px; border-width: 0px;
+        TouchArea {
+            clicked => {
+                if root.search-expanded && root.query == "" { root.close-search(); }
+            }
+        }
+        frame-keys := FocusScope {
+            enabled: !SettingsState.confirm-invalid-close && !root.confirming-reset;
+            capture-key-pressed(event) => {
+                if event.modifiers.control && (event.text == "f" || event.text == "F") { root.open-search(); return accept; }
+                if root.search-expanded && root.query != "" && root.search-results.length > 0 {
+                    if event.text == Key.DownArrow { root.search-index = min(root.search-results.length - 1, root.search-index + 1); return accept; }
+                    if event.text == Key.UpArrow { root.search-index = max(0, root.search-index - 1); return accept; }
+                    if event.text == "\n" { root.search-select(root.search-results[root.search-index]); return accept; }
+                }
+                if event.text == Key.Escape && root.search-expanded {
+                    if root.query != "" { root.query = ""; } else { root.close-search(); }
+                    return accept;
+                }
+                return reject;
+            }
+            key-pressed(event) => {
+                if event.text == Key.Tab { Interaction.keyboard-mode = true; }
+                if SettingsState.confirm-invalid-close && event.text == Key.Escape { SettingsState.action("cancel-close"); return accept; }
+                return reject;
+            }
+            HorizontalLayout {
+                padding: 8px; spacing: 8px;
+                Rectangle {
+                    width: 186px;
+                    border-radius: 12px; background: #111113;
+                    VerticalLayout {
+                        spacing: 0px;
+                        WindowMoveArea {
+                            height: 40px;
+                            // Share the navigation icon center and label column; the SVG includes its own side bearings.
+                            Image { source: @image-url("assets/logo.svg"); x: 12px; y: 6px; width: 28px; height: 28px; image-fit: contain; }
+                            Text {
+                                x: 45px; y: 0px; width: 120px; height: parent.height;
+                                text: "Flinch"; color: #f1f1f2; font-family: "Segoe UI Variable Text"; font-size: 18px; font-weight: 600; vertical-alignment: center;
+                            }
+                        }
+                        VerticalLayout {
+                            padding: 8px; spacing: 6px;
+                            NavItem { label: Copy.sidebar_general; icon: @image-url("assets/settings.svg"); selected: root.page == 0; has-error: SettingsState.page-has-error[0]; activated => { root.navigate(0); } }
+                            NavItem { label: Copy.sidebar_notifications; icon: @image-url("assets/bell.svg"); selected: root.page == 1; has-error: SettingsState.page-has-error[1]; activated => { root.navigate(1); } }
+                            NavItem { label: Copy.sidebar_hotkeys; icon: @image-url("assets/keyboard.svg"); selected: root.page == 2; has-error: SettingsState.page-has-error[2]; activated => { root.navigate(2); } }
+                            NavItem { label: Copy.sidebar_screenshots; icon: @image-url("assets/camera.svg"); selected: root.page == 3; has-error: SettingsState.page-has-error[3]; activated => { root.navigate(3); } }
+                            NavItem { label: Copy.sidebar_videos; icon: @image-url("assets/video.svg"); selected: root.page == 4; has-error: SettingsState.page-has-error[4]; activated => { root.navigate(4); } }
+                            NavItem { label: Copy.sidebar_files; icon: @image-url("assets/folder.svg"); selected: root.page == 5; has-error: SettingsState.page-has-error[5]; activated => { root.navigate(5); } }
+                            NavItem { label: Copy.sidebar_tools; icon: @image-url("assets/wrench.svg"); selected: root.page == 7; has-error: SettingsState.page-has-error[7]; activated => { root.navigate(7); } }
+                            Rectangle { vertical-stretch: 1; }
+                            NavItem { label: Copy.about_title; icon: @image-url("assets/circle-help.svg"); selected: root.page == 6; activated => { root.navigate(6); } }
+                        }
+                    }
+                }
+                VerticalLayout {
+                    spacing: 0px;
+                    Rectangle {
+                        height: 32px;
+                        WindowMoveArea { enabled: !root.search-expanded; }
+                        HorizontalLayout {
+                            padding-right: 64px; spacing: 8px;
+                            Rectangle {
+                                search-box := Rectangle {
+                                    width: root.search-expanded ? parent.width : 116px;
+                                    height: 32px; x: 0px; y: 0px;
+                                    border-radius: 8px; border-width: 1px;
+                                    border-color: #ffffff12; background: #00000059;
+                                    animate width { duration: Interaction.motion-enabled ? 180ms : 0ms; easing: ease-out; }
+                                    Icon { x: 8px; y: 9.5px; source: @image-url("assets/search.svg"); width: 13px; height: 13px; colorize: #ffffff73; }
+                                    if !root.search-expanded: Text {
+                                        x: 28px; width: 76px; height: parent.height;
+                                        text: "Ctrl + F"; font-family: Typography.text-family; color: #f1f1f2; font-size: 13px; font-weight: 500; horizontal-alignment: center; vertical-alignment: center;
+                                    }
+                                    search := TextInput {
+                                        x: 26px; y: 6px; width: parent.width - 54px; height: 20px;
+                                        visible: root.search-expanded; enabled: root.search-expanded;
+                                        text <=> root.query; single-line: true; color: #f1f1f2; font-size: 14px; vertical-alignment: center;
+                                        selection-background-color: #d92f2f66; accessible-label: Copy.search_aria_label;
+                                        changed has-focus => {
+                                            if !self.has-focus && root.query == "" { search-focus.stop(); root.search-expanded = false; }
+                                        }
+                                    }
+                                    if root.search-expanded && root.query == "": Text { x: 26px; width: parent.width - 40px; height: 32px; text: Copy.search_placeholder; color: #888892; font-size: 14px; vertical-alignment: center; }
+                                    if !root.search-expanded: ClickSurface { border-radius: 8px; background: self.pressed ? #ffffff12 : self.hovered ? #ffffff08 : transparent; accessible-label: Copy.search_aria_label; activated => { root.open-search(); } }
+                                    if root.search-expanded && root.query != "": ClickSurface {
+                                        x: parent.width - 27px; y: 6px; width: 20px; height: 20px; border-radius: 10px; background: self.hovered ? #ffffff14 : transparent;
+                                        accessible-label: Copy.native_settings_clear_search; Icon { x: 4px; y: 4px; source: @image-url("assets/x.svg"); width: 12px; height: 12px; }
+                                        activated => { root.query = ""; search.focus(); }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    // Keeps scrolled content from running flush against the search field.
+                    Rectangle { height: 8px; }
+                    Rectangle {
+                        visible: root.save-notice-visible;
+                        preferred-height: root.save-notice-visible ? 56px : 0px;
+                        min-height: self.preferred-height; max-height: self.preferred-height; clip: true;
+                        Rectangle {
+                            x: 0px; y: 0px; width: parent.width - 8px; height: parent.height - 8px;
+                            background: #222225; border-radius: 8px; border-width: 1px; border-color: #ffffff14;
+                            HorizontalLayout {
+                                padding-left: 12px; padding-right: 8px; spacing: 8px;
+                                if !SettingsState.close-timeout: VerticalLayout { alignment: center; ErrorMarker {} }
+                                Text { text: SettingsState.close-timeout ? Copy.native_still_saving : Copy.native_settings_error_notice; color: #e2e2e8; font-size: 13px; font-weight: 500; vertical-alignment: center; horizontal-stretch: 1; min-width: 0px; wrap: word-wrap; }
+                                VerticalLayout { alignment: center;
+                                    save-retry := SmallButton { visible: !SettingsState.close-timeout; width: SettingsState.close-timeout ? 0px : self.preferred-width; label: Copy.native_settings_retry; enabled: Interaction.editable && !SettingsState.saving && !root.modal-open; opacity: self.enabled ? 1 : 0.5; activated => { SettingsState.action("retry"); } }
+                                }
+                            }
+                        }
+                    }
+                    scroller := Flickable {
+                        min-width: 0px; preferred-width: 0px; max-width: 65535px;
+                        min-height: 0px; preferred-height: 0px; max-height: 65535px;
+                        content-width: self.width - 8px;
+                        content-height: max(self.height, content.min-height);
+                        content := VerticalLayout {
+                            opacity: root.page-progress;
+                            y: (1 - root.page-progress) * 4px;
+                            width: scroller.content-width; height: scroller.content-height;
+                            alignment: start; spacing: 0px;
+                            InlineError { message: !SettingsState.action-error-contextual ? SettingsState.action-message : ""; }
+                            Pages { available-height: scroller.height; }
+
+                        }
+                    }
+
+                }
+            }
+        }
+        if root.search-expanded && !root.modal-open: Rectangle {
+            // Dismissal surfaces surround the field and results without forwarding
+            // the same click into a setting behind the dropdown.
+            TouchArea { width: search-box.absolute-position.x; clicked => { root.close-search(); } }
+            TouchArea { x: scroller.absolute-position.x + scroller.width - 8px; width: parent.width - self.x; clicked => { root.close-search(); } }
+            TouchArea { height: search-box.absolute-position.y; clicked => { root.close-search(); } }
+            TouchArea { y: search-box.absolute-position.y + search-box.height; height: 6px; clicked => { root.close-search(); } }
+            TouchArea {
+                y: search-box.absolute-position.y + search-box.height + (root.query == "" ? 0px : 6px + root.search-popup-height);
+                height: parent.height - self.y; clicked => { root.close-search(); }
+            }
+            TouchArea {
+                x: search-box.absolute-position.x + search-box.width; y: search-box.absolute-position.y;
+                width: parent.width - self.x; height: search-box.height;
+                clicked => { root.close-search(); }
+            }
+        }
+        if root.search-expanded && root.query != "" && !root.modal-open: Rectangle {
+            x: search-box.absolute-position.x; y: search-box.absolute-position.y + search-box.height + 6px;
+            width: scroller.width - 8px;
+            height: root.search-popup-height;
+            background: #242427; border-radius: 8px; border-width: 1px; border-color: #ffffff17;
+            clip: true;
+            if root.search-results.length == 0: Text { text: Copy.search_no_results; color: #a1a1ab; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+            if root.search-results.length > 0: Flickable {
+                x: 4px; y: 4px; width: parent.width - 8px; height: parent.height - 8px;
+                content-width: self.width; content-height: root.search-results.length * 44px;
+                content-y: -max(0px, (root.search-index - 6) * 44px);
+                VerticalLayout {
+                    width: parent.width; spacing: 0px;
+                    for result[index] in root.search-results: ClickSurface {
+                        height: 44px; border-radius: 5px;
+                        accessible-label: result.label + ", " + result.section;
+                        background: self.pressed ? #ffffff14 : self.hovered || index == root.search-index ? #ffffff0c : transparent;
+                        Text { x: 10px; y: 5px; width: parent.width - 20px; height: 19px; text: result.label; color: #f1f1f2; font-size: 13px; overflow: elide; }
+                        Text { x: 10px; y: 24px; width: parent.width - 20px; height: 15px; text: result.section; color: #92929c; font-size: 11px; overflow: elide; }
+                        activated => { root.search-select(result); }
+                    }
+                }
+            }
+        }
+        scroll-thumb := Rectangle {
+            private property <length> drag-origin;
+            private property <length> scroll-origin;
+            x: scroller.absolute-position.x + scroller.width - 5px;
+            y: scroller.absolute-position.y - scroller.content-y * (scroller.height - self.height) / max(1px, scroller.content-height - scroller.height);
+            width: 4px; height: max(24px, scroller.height * scroller.height / max(1px, scroller.content-height));
+            border-radius: 2px; background: thumb.pressed ? #ffffff80 : thumb.has-hover ? #ffffff60 : #ffffff30;
+            visible: scroller.content-height > scroller.height;
+            thumb := TouchArea {
+                mouse-cursor: pointer;
+                changed pressed => { if self.pressed { parent.drag-origin = self.mouse-y + parent.y; parent.scroll-origin = scroller.content-y; } }
+                moved => { if self.pressed { scroller.content-y = max(scroller.height - scroller.content-height, min(0px, parent.scroll-origin - (self.mouse-y + parent.y - parent.drag-origin) * (scroller.content-height - scroller.height) / max(1px, scroller.height - parent.height))); } }
+            }
+        }
+        HorizontalLayout {
+            x: parent.width - 64px; y: 0px; width: 64px; height: 32px; spacing: 0px;
+            ClickSurface {
+                width: 32px; height: 32px; background: self.hovered ? #ffffff14 : transparent;
+                accessible-label: Copy.native_settings_minimize;
+                Icon { x: 9px; y: 9px; source: @image-url("assets/minus.svg"); width: 14px; height: 14px; colorize: #ffffff66; }
+                activated => { root.minimized = true; }
+            }
+            settings-close := ClickSurface {
+                width: 32px; height: 32px; background: self.hovered ? #d92f2f : transparent;
+                accessible-label: Copy.native_settings_close;
+                Icon { x: 9px; y: 9px; source: @image-url("assets/x.svg"); width: 14px; height: 14px; colorize: settings-close.hovered ? #ffffff : #ffffff66; }
+                activated => { root.close-request(); }
+            }
+        }
+    }
+    reset-confirmation := ConfirmationDialog {
+        open: root.confirming-reset;
+        heading: Copy.system_reset_confirmation; detail: Copy.system_reset_kept;
+        cancel-label: Copy.system_reset_cancel; confirm-label: Copy.system_reset_confirm;
+        dismissed(confirmed) => {
+            root.confirming-reset = false;
+            frame-keys.focus();
+            if confirmed { SettingsState.action("reset"); }
+        }
+    }
+    ConfirmationDialog {
+        open: SettingsState.confirm-invalid-close;
+        heading: Copy.native_close_invalid; detail: Copy.native_close_invalid_detail;
+        cancel-label: Copy.native_keep_editing; confirm-label: Copy.native_discard_invalid;
+        dismissed(confirmed) => { SettingsState.action(confirmed ? "discard" : "cancel-close"); }
+    }
+    flash := Timer { interval: 900ms; triggered => { Interaction.highlight = ""; self.running = false; } }
+}

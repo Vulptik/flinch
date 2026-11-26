@@ -1,0 +1,11 @@
+# Rustfmt configuration for Flinch Desktop
+# https://rust-lang.github.io/rustfmt/
+
+edition = "2024"
+max_width = 100
+tab_spaces = 2
+newline_style = "Unix"
+
+reorder_imports = true
+use_small_heuristics = "Default"
+match_block_trailing_comma = true

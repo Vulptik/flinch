@@ -1,0 +1,185 @@
+name: Build
+
+# main is the public trunk; release tags (v1.3.0…) mark releases and run the Pre-release check
+# instead. A hotfix that cannot wait for main is made on a hotfix/<version> branch cut from the tag.
+on:
+  push:
+    branches:
+      - main
+      - "hotfix/**"
+  pull_request:
+    branches:
+      - main
+      - "hotfix/**"
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Setup Rust
+        # Installs the exact Rust, components and target named in rust-toolchain.toml.
+        run: rustup toolchain install
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          # Failing runs still save the build, so the next run does not compile from scratch.
+          cache-on-failure: true
+
+      - name: Rust format check
+        working-directory: .
+        run: cargo fmt --all --check
+
+      - name: Docs check
+        run: cargo xtask check:docs
+
+      - name: Contract checks
+        run: cargo xtask check:contracts
+
+      - name: Development tooling tests
+        run: cargo xtask test:tooling
+
+      - name: Installer library with the shared single-instance endpoint
+        run: cargo xtask test:installer
+
+      - name: Clippy
+        working-directory: .
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Native settings platform adapter
+        run: |
+          cargo check --manifest-path Cargo.toml --features native-settings,msix
+
+  test:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Setup Rust
+        # Installs the exact Rust, components and target named in rust-toolchain.toml.
+        run: rustup toolchain install
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          # Failing runs still save the build, so the next run does not compile from scratch.
+          cache-on-failure: true
+
+      - name: Rust unit tests
+        working-directory: .
+        run: cargo test --lib -- --test-threads=1
+
+      - name: Isolated native video contracts and software AAC calibration
+        run: cargo xtask test:video
+
+      - name: Native recorder against a real engine worker with synthetic sources
+        timeout-minutes: 20
+        run: cargo xtask test:recording
+
+      # Failing pipeline tests keep their recordings in %TEMP% ("Kept … for diagnosis").
+      - name: Collect kept recordings
+        if: failure()
+        shell: pwsh
+        run: |
+          $out = (New-Item -ItemType Directory -Force artifacts/ci-recordings).FullName
+          # Copy every kept recording flat, without dot-folders (upload-artifact skips hidden paths).
+          Get-ChildItem $env:TEMP -Recurse -File -Force -Include *.mp4, *.gif -ErrorAction SilentlyContinue |
+            Where-Object { $_.FullName -match '\\(flinch-test-runs|\.tmp[^\\]*)\\' } |
+            ForEach-Object {
+              # %TEMP% may be an 8.3 short path while FullName is long, so cut at the folder name.
+              $name = (($_.FullName -replace '^.*?\\(?=flinch-test-runs\\|\.tmp)', '') -replace '[\\.]+', '_') + $_.Extension
+              Copy-Item $_.FullName (Join-Path $out $name)
+              Write-Host "Kept $($_.FullName) ($($_.Length) bytes)"
+            }
+
+      - name: Upload kept recordings
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: kept-recordings
+          path: artifacts/ci-recordings/
+          if-no-files-found: ignore
+
+      # Desktop gates (test:*:desktop) need a real interactive desktop; they run locally in
+      # check:release, never on the runner.
+      - name: Quiet settings models, headless UI and interaction registry
+        run: cargo xtask test:settings
+
+      - name: Rust integration tests compile
+        working-directory: .
+        run: cargo test --no-default-features --features native-settings --tests --no-run
+
+      - name: Rust integration tests
+        working-directory: .
+        run: cargo xtask test:run --integration-only
+
+  coverage:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Setup Rust coverage tools
+        # Installs the exact Rust, components and target named in rust-toolchain.toml.
+        run: rustup toolchain install
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          # Failing runs still save the build, so the next run does not compile from scratch.
+          cache-on-failure: true
+
+      - name: Install pinned coverage runner
+        run: cargo install cargo-llvm-cov --version 0.9.1 --locked
+
+      - name: Enforce production coverage floor and baseline
+        run: cargo xtask test:coverage
+
+      - name: Retain coverage evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: production-coverage
+          path: target/coverage/
+          if-no-files-found: error
+
+  build-windows:
+    needs: [lint, test, coverage]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 2
+
+      - name: Setup Rust
+        # Installs the exact Rust, components and target named in rust-toolchain.toml.
+        run: rustup toolchain install
+
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          # Failing runs still save the build, so the next run does not compile from scratch.
+          cache-on-failure: true
+
+      # Checks that the Store package stages; builds are never published from main.
+      - name: Stage native MSIX inputs
+        run: cargo xtask pack:msix --stage-only

@@ -1,0 +1,570 @@
+import { Copy } from "copy.slint";
+import { LevelRow, Typography, Interaction, Reveal, Icon, ClickSurface, SelectionSurface, SectionHeader, InlineError, FieldLabel, Card, Divider, ToggleRow, SelectRow, ActionRow, SmallButton, TextField, ShortcutRow } from "widgets.slint";
+
+export struct GraphicsAdapter { name: string, driver: string }
+export struct DisplayDetails { summary: string, hdr: string }
+
+component ActionError inherits InlineError {
+    in property <string> action;
+    message: SettingsState.error-action == root.action ? SettingsState.action-message : "";
+}
+
+component TemplateToken inherits ClickSurface {
+    in property <string> token;
+    enabled: Interaction.editable;
+    height: 24px; border-radius: 4px;
+    background: self.hovered ? #ffffff1f : #232329;
+    HorizontalLayout {
+        padding-left: 8px; padding-right: 8px;
+        Text { text: root.token; color: #888892; font-family: Typography.text-family; font-size: 13px; horizontal-alignment: center; vertical-alignment: center; }
+    }
+}
+
+component AboutLink inherits ClickSurface {
+    in property <string> label;
+    in property <image> icon;
+    height: 40px; border-radius: 8px;
+    enabled: Interaction.editable;
+    accessible-label: root.label;
+    background: self.pressed ? #ffffff17 : self.hovered ? #ffffff0f : transparent;
+    Icon { source: root.icon; x: 12px; y: 11px; }
+    Text { x: 42px; width: parent.width - 78px; height: parent.height; text: root.label; color: #f1f1f2; font-size: 14px; vertical-alignment: center; }
+    Icon { source: @image-url("assets/arrow-up-right.svg"); x: parent.width - 28px; y: 12px; width: 16px; height: 16px; }
+}
+
+component InlineAction inherits ClickSurface {
+    in property <string> label;
+    in property <image> icon;
+    in property <bool> external: false;
+    in property <bool> show-icon: true;
+    in property <bool> disclosure: false;
+    in property <bool> expanded: false;
+    enabled: Interaction.editable;
+    accessible-label: label;
+    height: 28px; border-radius: 4px;
+    width: label-size.preferred-width + (show-icon ? 30px : 4px) + (external || disclosure ? 20px : 0px);
+    label-size := Text { visible: false; text: root.label; font-size: 13px; }
+    Icon { visible: root.show-icon; source: root.icon; x: 0px; y: 6px; colorize: root.hovered ? #f1f1f2 : #a1a1ab; }
+    Text { x: root.show-icon ? 26px : 0px; width: parent.width - self.x - (root.external || root.disclosure ? 20px : 0px); height: parent.height; text: root.label; color: root.hovered ? #f1f1f2 : #c8c8d0; font-size: 13px; vertical-alignment: center; }
+    if external: Icon { source: @image-url("assets/arrow-up-right.svg"); x: parent.width - 16px; y: 7px; width: 14px; height: 14px; colorize: root.hovered ? #c8c8d0 : #888892; }
+    if disclosure: Icon { source: @image-url("assets/chevron-down.svg"); x: parent.width - 16px; y: 7px; width: 14px; height: 14px; transform-rotation: root.expanded ? 180deg : 0deg; colorize: root.hovered ? #c8c8d0 : #888892; }
+}
+
+// Dimmed while the value is already the default: there is nothing to reset.
+component ResetAction inherits ClickSurface {
+    in property <string> label;
+    in property <bool> active;
+    width: 28px; height: 28px; border-radius: 6px;
+    enabled: Interaction.editable && root.active;
+    accessible-label: label;
+    background: self.hovered ? #ffffff0d : transparent;
+    Icon { x: 6px; y: 6px; width: 16px; height: 16px; source: @image-url("assets/rotate-ccw.svg"); colorize: !root.active ? #4a4a52 : parent.hovered ? #c8c8d0 : #888892; }
+}
+
+component DiagnosticRow inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> value;
+    min-height: 28px; spacing: 16px;
+    Text { text: root.label; width: 164px; color: #a1a1ab; font-size: 13px; vertical-alignment: top; }
+    Text { text: root.value; color: #f1f1f2; font-size: 13px; wrap: word-wrap; min-width: 0px; horizontal-stretch: 1; }
+}
+
+component OutputFolderRow inherits ClickSurface {
+    in property <string> label;
+    in property <string> path;
+    in property <bool> show-label: true;
+    height: root.show-label ? 52px : 40px;
+    border-radius: 8px;
+    enabled: Interaction.editable;
+    accessible-label: label + ": " + path;
+    background: self.hovered ? #ffffff0d : transparent;
+    Icon { source: @image-url("assets/folder-open.svg"); x: 12px; y: root.show-label ? 17px : 12px; colorize: root.hovered ? #f1f1f2 : #888892; }
+    Text { visible: root.show-label; x: 40px; y: 6px; width: parent.width - 78px; height: 18px; text: root.label; color: #f1f1f2; font-size: 13px; font-weight: 600; overflow: elide; }
+    Text { x: 40px; y: root.show-label ? 27px : 11px; width: parent.width - 78px; height: 18px; text: root.path; color: root.hovered ? #c8c8d0 : #a1a1ab; font-size: 13px; overflow: elide; }
+    Icon { source: @image-url("assets/arrow-up-right.svg"); x: parent.width - 29px; y: root.show-label ? 18px : 12px; width: 16px; height: 16px; colorize: root.hovered ? #f1f1f2 : #888892; }
+}
+
+component OutputFolder inherits HorizontalLayout {
+    in property <string> label;
+    in property <string> path;
+    in property <bool> show-label: true;
+    in property <bool> custom;
+    callback open;
+    callback pick;
+    callback reset;
+    alignment: stretch; spacing: 4px; padding-right: 4px;
+    OutputFolderRow { horizontal-stretch: 1; label: root.label; path: root.path; show-label: root.show-label; activated => { root.open(); } }
+    VerticalLayout { alignment: center; InlineAction { show-icon: false; label: Copy.files_change_folder; activated => { root.pick(); } } }
+    // Only a custom folder has a reset: the default path needs the width.
+    if root.custom: VerticalLayout { alignment: center; ResetAction { label: Copy.system_filename_template_reset; active: true; activated => { root.reset(); } } }
+}
+
+export global SettingsState {
+    in-out property <int> page: 0;
+    in-out property <bool> boot;
+    in-out property <bool> startup-unavailable;
+    in-out property <bool> updates;
+    in-out property <string> update-version;
+    in-out property <bool> notifications;
+    in-out property <bool> sound;
+    in-out property <bool> cursor;
+    in-out property <bool> gif-cursor;
+    in-out property <bool> clicks;
+    in-out property <bool> gif-clicks;
+    in-out property <bool> microphone;
+    in-out property <[string]> microphone-options: [""];
+    in-out property <[string]> microphone-ids: [""];
+    in-out property <[string]> microphone-names: [""];
+    in-out property <int> microphone-index;
+    in-out property <float> microphone-level;
+    in-out property <string> microphone-problem;
+    in-out property <bool> magnifier;
+    in-out property <bool> copy-text-direct;
+    in-out property <int> capture-delay-index;
+    in-out property <bool> large-png-as-jpg;
+    in-out property <bool> audio;
+    in-out property <bool> hardware;
+    in-out property <bool> confirming-reset;
+    in-out property <string> filename;
+    in-out property <string> subfolder;
+    in-out property <string> subfolder-preview;
+    in property <string> filename-default;
+    in property <string> subfolder-default;
+    in-out property <bool> together-folder-custom;
+    in-out property <bool> screenshots-folder-custom;
+    in-out property <bool> videos-folder-custom;
+    in property <string> filename-error;
+    in property <string> subfolder-error;
+    in-out property <bool> filename-customization-expanded: false;
+    in-out property <bool> subfolder-customization-expanded: false;
+    in-out property <int> folder-index;
+    in-out property <int> format-index;
+    in-out property <int> screenshot-quality-index;
+    in-out property <int> video-quality-index;
+    in-out property <int> video-fps-index;
+    in-out property <int> gif-fps-index;
+    in-out property <int> gif-duration-index;
+    in-out property <int> notification-position-index;
+    in-out property <int> notification-duration-index;
+    in property <[string]> notification-durations;
+    in property <[string]> shortcut-area;
+    in property <[string]> shortcut-fullscreen;
+    in property <[string]> shortcut-window;
+    in property <[string]> shortcut-edit;
+    in property <[string]> shortcut-copy-text;
+    in property <[string]> shortcut-pick-color;
+    in property <[string]> shortcut-last-region;
+    in property <[string]> shortcut-gif;
+    in property <[string]> shortcut-video-area;
+    in property <[string]> shortcut-video-fullscreen;
+    in property <[string]> shortcut-video-window;
+    in property <[bool]> shortcut-conflicts: [false, false, false, false, false, false, false, false, false, false, false];
+    in property <string> filename-preview;
+    in property <string> screenshots-path;
+    in property <string> videos-path;
+    in property <string> channel;
+    in property <string> windows-build;
+    in property <string> graphics;
+    in property <[GraphicsAdapter]> graphics-adapters;
+    in property <string> displays;
+    in property <[DisplayDetails]> display-details;
+    in-out property <bool> save-failed;
+    in-out property <bool> saving;
+    in-out property <string> save-error;
+    in-out property <bool> confirm-invalid-close;
+    in-out property <int> focus-invalid;
+    in-out property <[string]> field-errors: ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
+    // One entry per sidebar page: a problem you are not looking at still leads you to it.
+    out property <[bool]> page-has-error: [
+        field-errors[0] != "" || field-errors[1] != "" || field-errors[25] != "",
+        field-errors[2] != "" || field-errors[3] != "" || field-errors[4] != "" || field-errors[5] != "",
+        field-errors[18] != "" || field-errors[30] != "" || shortcut-conflicts[7] || field-errors[32] != "" || shortcut-conflicts[8] || field-errors[34] != "" || shortcut-conflicts[9] || field-errors[37] != "" || shortcut-conflicts[10] || field-errors[19] != "" || field-errors[20] != "" || field-errors[21] != "" || field-errors[22] != "" || field-errors[23] != "" || field-errors[24] != "" || shortcut-conflicts[0] || shortcut-conflicts[1] || shortcut-conflicts[2] || shortcut-conflicts[3] || shortcut-conflicts[4] || shortcut-conflicts[5] || shortcut-conflicts[6],
+        field-errors[6] != "" || field-errors[7] != "" || field-errors[35] != "" || field-errors[8] != "" || field-errors[9] != "" || field-errors[26] != "" || field-errors[39] != "",
+        field-errors[10] != "" || field-errors[11] != "" || field-errors[12] != "" || field-errors[13] != "" || field-errors[14] != "" || field-errors[38] != "" || field-errors[40] != "" || field-errors[41] != "" || microphone-problem != "",
+        field-errors[15] != "" || field-errors[16] != "" || field-errors[17] != "" || field-errors[27] != "" || field-errors[28] != "" || field-errors[29] != "" || filename-error != "" || subfolder-error != "",
+        false,
+        field-errors[31] != "" || field-errors[33] != "" || field-errors[36] != "",
+    ];
+    in-out property <string> action-error;
+    in-out property <string> action-message;
+    in-out property <string> error-action;
+    out property <bool> folder-action-failed: error-action == "open-screenshots" || error-action == "open-videos" || error-action == "pick-folder-together" || error-action == "pick-folder-screenshots" || error-action == "pick-folder-videos";
+    // Every named action shows its failure beside its own control.
+    out property <bool> action-error-contextual: error-action != "";
+    in-out property <int> diagnostics-copy-generation: 0;
+    in-out property <bool> close-pending;
+    in-out property <bool> close-timeout;
+    in-out property <int> preview-cooldown;
+
+    callback action(string);
+    callback reset-request;
+    callback edit-request(string);
+    in-out property <string> capture-target;
+    callback capture-request(string);
+}
+
+export component Pages inherits VerticalLayout {
+    private property <int> copy-generation: SettingsState.diagnostics-copy-generation;
+    private property <bool> diagnostics-copied: false;
+    changed copy-generation => { root.diagnostics-copied = true; copied-reset.restart(); }
+    copied-reset := Timer { interval: 2s; triggered => { self.running = false; root.diagnostics-copied = false; } }
+    private property <bool> customize-files: false;
+    in property <length> available-height;
+    alignment: start; spacing: 0px;
+    if SettingsState.page == 0: VerticalLayout {
+        alignment: start; spacing: 0px;
+        SectionHeader { label: Copy.sidebar_general_upper; }
+        Card {
+            SelectRow { error: SettingsState.field-errors[0]; label: Copy.system_language; options: ["English", "Français", "Deutsch", "Español", "Italiano"]; current-index <=> Copy.language; edited => { SettingsState.edit-request("language"); } }
+            Divider {}
+            ToggleRow { enabled: !SettingsState.startup-unavailable; error: SettingsState.field-errors[1]; label: Copy.system_start_at_boot; checked <=> SettingsState.boot; edited => { SettingsState.edit-request("boot"); } }
+            if SettingsState.channel == "installer": VerticalLayout { spacing: 0px;
+                Divider {}
+                ToggleRow { error: SettingsState.field-errors[25]; label: Copy.system_check_for_updates; checked <=> SettingsState.updates; edited => { SettingsState.edit-request("updates"); } }
+                if SettingsState.updates && SettingsState.update-version != "": HorizontalLayout {
+                    padding-left: 16px; padding-bottom: 10px; alignment: start;
+                    InlineAction { label: Copy.native_update_available; external: true; show-icon: false; activated => { SettingsState.action("download-update"); } }
+                }
+            }
+        }
+        SectionHeader { label: Copy.system_configuration_upper; height: 35px; }
+        Card {
+            vertical-padding: 8px; row-spacing: 8px;
+            ActionRow { label: Copy.system_import; icon: @image-url("assets/download.svg"); suffix: "JSON"; activated => { SettingsState.action("import"); } }
+            if SettingsState.error-action == "import" && SettingsState.action-error != "": ActionError { action: "import"; }
+            ActionRow { label: Copy.system_export; icon: @image-url("assets/file-up.svg"); suffix: "JSON"; activated => { SettingsState.action("export"); } }
+            if SettingsState.error-action == "export" && SettingsState.action-error != "": ActionError { action: "export"; }
+            ActionRow { label: Copy.system_reset; icon: @image-url("assets/rotate-ccw.svg"); enabled: Interaction.editable && !SettingsState.confirming-reset; activated => { SettingsState.reset-request(); } }
+            if SettingsState.error-action == "reset" && SettingsState.action-error != "": ActionError { action: "reset"; }
+
+        }
+    }
+    if SettingsState.page == 1: VerticalLayout {
+        alignment: start; spacing: 0px;
+        SectionHeader { label: Copy.sidebar_notifications_upper; }
+        Card {
+            ToggleRow { error: SettingsState.field-errors[2]; label: Copy.notifications_enabled; checked <=> SettingsState.notifications; edited => { SettingsState.edit-request("notifications"); } }
+            if SettingsState.notifications: VerticalLayout { spacing: 0px;
+                Divider {}
+                ToggleRow { error: SettingsState.field-errors[3]; label: Copy.notifications_sound; checked <=> SettingsState.sound; edited => { SettingsState.edit-request("sound"); } }
+                Divider {}
+                SelectRow { error: SettingsState.field-errors[4]; label: Copy.notifications_duration; options: SettingsState.notification-durations; control-width: 92px; current-index <=> SettingsState.notification-duration-index; edited => { SettingsState.edit-request("notification-duration-index"); } }
+                Divider {}
+                VerticalLayout {
+                    padding: 16px; spacing: 10px;
+                    HorizontalLayout {
+                        height: 28px; spacing: 8px;
+                        FieldLabel { label: Copy.notifications_position; }
+                        InlineAction {
+                            enabled: Interaction.editable && SettingsState.preview-cooldown == 0;
+                            label: Copy.notifications_test_short;
+                            accessible-label: Copy.notifications_test;
+                            icon: @image-url("assets/bell.svg");
+                            activated => { SettingsState.action("notification"); }
+                        }
+                    }
+                    HorizontalLayout {
+                        alignment: center; spacing: 10px;
+                        for position in [1, 0, 3, 2]: SelectionSurface {
+                            search-label: Copy.notifications_position;
+                            selected: SettingsState.notification-position-index == position;
+                            border-radius: 6px;
+                            enabled: Interaction.editable;
+                            width: min(96px, (parent.width - 30px) / 4);
+                            height: 76px;
+                            accessible-label: position == 1 ? Copy.notifications_position_top_left : position == 0 ? Copy.notifications_position_top_right : position == 3 ? Copy.notifications_position_bottom_left : Copy.notifications_position_bottom_right;
+                            activated => { SettingsState.notification-position-index = position; SettingsState.edit-request("notification-position-index"); }
+                            screen := Rectangle {
+                                x: 0px; y: 0px;
+                                height: parent.height; width: parent.width;
+                                border-radius: 6px;
+                                background: transparent;
+                                desktop := Rectangle {
+                                    x: 6px; y: 6px; width: parent.width - 12px; height: parent.height - 12px;
+                                    border-radius: 4px; background: #181a1e; clip: true;
+                                    Image { width: desktop.width; height: desktop.height; source: @image-url("assets/position-desktop.svg"); image-fit: fill; }
+                                    // Mirror one toast within the desktop work area above the taskbar.
+                                    toast := Rectangle {
+                                        x: position == 1 || position == 3 ? 6px : desktop.width - toast.width - 6px;
+                                        y: position < 2 ? 6px : desktop.height - 5px - toast.height - 6px;
+                                        width: 43px; height: 18px; border-radius: 3px;
+                                        background: #101114ed; border-width: 1px; border-color: #35353c;
+                                        Rectangle { x: 4px; y: 4px; width: 8px; height: 10px; border-radius: 2px; background: #ed354f; }
+                                        Rectangle { x: 15px; y: 5px; width: 17px; height: 2px; background: #f0f0f5; }
+                                        Rectangle { x: 15px; y: 9px; width: 22px; height: 1px; background: #aeaeb9; }
+                                        Rectangle { x: 15px; y: 12px; width: 12px; height: 1px; background: #737780; }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    if SettingsState.field-errors[5] != "": InlineError { horizontal-inset: 0px; message: SettingsState.field-errors[5]; }
+                    if SettingsState.error-action == "notification" && SettingsState.action-error != "": ActionError { action: "notification"; }
+                }
+            }
+        }
+    }
+    if SettingsState.page == 2: VerticalLayout {
+        alignment: start; spacing: 0px;
+        SectionHeader { label: Copy.hotkeys_screenshots_upper; }
+        Card {
+            ShortcutRow { error: SettingsState.field-errors[18]; conflicted: SettingsState.shortcut-conflicts[0]; label: Copy.hotkeys_area; keycaps: SettingsState.shortcut-area; capturing: SettingsState.capture-target == "screenshot-area"; capture-request => { SettingsState.capture-request("screenshot-area"); } }
+            Divider {}
+            ShortcutRow { error: SettingsState.field-errors[19]; conflicted: SettingsState.shortcut-conflicts[1]; label: Copy.hotkeys_fullscreen; keycaps: SettingsState.shortcut-fullscreen; capturing: SettingsState.capture-target == "screenshot-fullscreen"; capture-request => { SettingsState.capture-request("screenshot-fullscreen"); } }
+            Divider {}
+            ShortcutRow { error: SettingsState.field-errors[20]; conflicted: SettingsState.shortcut-conflicts[2]; label: Copy.hotkeys_active_window; keycaps: SettingsState.shortcut-window; capturing: SettingsState.capture-target == "screenshot-window"; capture-request => { SettingsState.capture-request("screenshot-window"); } }
+            Divider {}
+            ShortcutRow { error: SettingsState.field-errors[30]; conflicted: SettingsState.shortcut-conflicts[7]; label: Copy.hotkeys_capture_edit; keycaps: SettingsState.shortcut-edit; capturing: SettingsState.capture-target == "screenshot-edit"; capture-request => { SettingsState.capture-request("screenshot-edit"); } }
+            Divider {}
+            ShortcutRow { error: SettingsState.field-errors[37]; conflicted: SettingsState.shortcut-conflicts[10]; label: Copy.hotkeys_last_region; keycaps: SettingsState.shortcut-last-region; capturing: SettingsState.capture-target == "last-region"; capture-request => { SettingsState.capture-request("last-region"); } }
+        }
+        SectionHeader { label: Copy.screenshots_gif_recording_upper; }
+        Card { ShortcutRow { error: SettingsState.field-errors[21]; conflicted: SettingsState.shortcut-conflicts[3]; label: Copy.hotkeys_record_gif; keycaps: SettingsState.shortcut-gif; capturing: SettingsState.capture-target == "gif"; capture-request => { SettingsState.capture-request("gif"); } } }
+        SectionHeader { label: Copy.hotkeys_videos_upper; }
+        Card {
+            ShortcutRow { error: SettingsState.field-errors[22]; conflicted: SettingsState.shortcut-conflicts[4]; label: Copy.hotkeys_area; keycaps: SettingsState.shortcut-video-area; capturing: SettingsState.capture-target == "video-area"; capture-request => { SettingsState.capture-request("video-area"); } }
+            Divider {}
+            ShortcutRow { error: SettingsState.field-errors[23]; conflicted: SettingsState.shortcut-conflicts[5]; label: Copy.hotkeys_fullscreen; keycaps: SettingsState.shortcut-video-fullscreen; capturing: SettingsState.capture-target == "video-fullscreen"; capture-request => { SettingsState.capture-request("video-fullscreen"); } }
+            Divider {}
+            ShortcutRow { error: SettingsState.field-errors[24]; conflicted: SettingsState.shortcut-conflicts[6]; label: Copy.hotkeys_active_window; keycaps: SettingsState.shortcut-video-window; capturing: SettingsState.capture-target == "video-window"; capture-request => { SettingsState.capture-request("video-window"); } }
+        }
+        SectionHeader { label: Copy.sidebar_tools_upper; }
+        Card {
+            ShortcutRow { error: SettingsState.field-errors[32]; conflicted: SettingsState.shortcut-conflicts[8]; label: Copy.hotkeys_copy_text; keycaps: SettingsState.shortcut-copy-text; capturing: SettingsState.capture-target == "copy-text"; capture-request => { SettingsState.capture-request("copy-text"); } }
+            Divider {}
+            ShortcutRow { error: SettingsState.field-errors[34]; conflicted: SettingsState.shortcut-conflicts[9]; label: Copy.hotkeys_color_picker; keycaps: SettingsState.shortcut-pick-color; capturing: SettingsState.capture-target == "pick-color"; capture-request => { SettingsState.capture-request("pick-color"); } }
+        }
+    }
+    if SettingsState.page == 3: VerticalLayout {
+        alignment: start; spacing: 0px;
+        SectionHeader { label: Copy.sidebar_screenshots_upper; }
+        Card {
+            SelectRow { error: SettingsState.field-errors[6]; label: Copy.screenshots_format; options: ["PNG", "JPG", "WebP"]; control-width: 120px; current-index <=> SettingsState.format-index; edited => { SettingsState.edit-request("format-index"); } }
+            Divider {}
+            SelectRow { error: SettingsState.field-errors[7]; label: Copy.screenshots_quality; options: [Copy.common_low, Copy.common_medium, Copy.common_high]; control-width: 120px; current-index <=> SettingsState.screenshot-quality-index; edited => { SettingsState.edit-request("screenshot-quality-index"); } }
+            Divider {}
+            ToggleRow { error: SettingsState.field-errors[35]; enabled: SettingsState.format-index == 0; label: Copy.screenshots_large_png_as_jpg; checked <=> SettingsState.large-png-as-jpg; edited => { SettingsState.edit-request("large-png-as-jpg"); } }
+        }
+        SectionHeader { label: Copy.screenshots_gif_recording_upper; }
+        Card {
+            SelectRow { error: SettingsState.field-errors[9]; label: Copy.screenshots_gif_max_duration; options: [Copy.screenshots_duration_10, Copy.screenshots_duration_20, Copy.screenshots_duration_30]; control-width: 120px; current-index <=> SettingsState.gif-duration-index; edited => { SettingsState.edit-request("gif-duration-index"); } }
+            Divider {}
+            SelectRow { error: SettingsState.field-errors[8]; label: Copy.screenshots_frame_rate; options: [Copy.screenshots_fps_15, Copy.screenshots_fps_30]; control-width: 120px; current-index <=> SettingsState.gif-fps-index; edited => { SettingsState.edit-request("gif-fps-index"); } }
+            Divider {}
+            ToggleRow { error: SettingsState.field-errors[26]; label: Copy.gif_show_cursor; checked <=> SettingsState.gif-cursor; edited => { SettingsState.edit-request("gif-cursor"); } }
+            Divider {}
+            ToggleRow { error: SettingsState.field-errors[39]; label: Copy.gif_show_clicks; checked <=> SettingsState.gif-clicks; edited => { SettingsState.edit-request("gif-clicks"); } }
+        }
+    }
+    if SettingsState.page == 4: VerticalLayout {
+        alignment: start; spacing: 0px;
+        SectionHeader { label: Copy.sidebar_videos_upper; }
+        Card {
+            SelectRow { error: SettingsState.field-errors[11]; label: Copy.videos_quality; options: [Copy.common_low, Copy.common_medium, Copy.common_high]; control-width: 120px; current-index <=> SettingsState.video-quality-index; edited => { SettingsState.edit-request("video-quality-index"); } }
+            Divider {}
+            SelectRow { error: SettingsState.field-errors[10]; label: Copy.videos_frame_rate; options: [Copy.videos_fps_30, Copy.videos_fps_60]; control-width: 120px; current-index <=> SettingsState.video-fps-index; edited => { SettingsState.edit-request("video-fps-index"); } }
+            Divider {}
+            ToggleRow { error: SettingsState.field-errors[12]; label: Copy.videos_hardware_encoding; checked <=> SettingsState.hardware; edited => { SettingsState.edit-request("hardware"); } }
+            Divider {}
+            ToggleRow { error: SettingsState.field-errors[13]; label: Copy.videos_record_audio; checked <=> SettingsState.audio; edited => { SettingsState.edit-request("audio"); } }
+            Divider {}
+            ToggleRow { error: SettingsState.field-errors[14]; label: Copy.videos_show_cursor; checked <=> SettingsState.cursor; edited => { SettingsState.edit-request("cursor"); } }
+            Divider {}
+            ToggleRow { error: SettingsState.field-errors[38]; label: Copy.videos_show_clicks; checked <=> SettingsState.clicks; edited => { SettingsState.edit-request("clicks"); } }
+        }
+        SectionHeader { label: Copy.videos_microphone_upper; }
+        Card {
+            ToggleRow { error: SettingsState.field-errors[40]; label: Copy.videos_record_microphone; checked <=> SettingsState.microphone; edited => { SettingsState.edit-request("microphone"); } }
+            if SettingsState.microphone: Divider {}
+            if SettingsState.microphone: SelectRow { error: SettingsState.field-errors[41]; label: Copy.videos_microphone; options: SettingsState.microphone-options; control-width: 240px; current-index <=> SettingsState.microphone-index; edited => { SettingsState.edit-request("microphone-index"); } }
+            if SettingsState.microphone: LevelRow { label: Copy.videos_microphone_level; level: SettingsState.microphone-level; problem: SettingsState.microphone-problem; }
+        }
+    }
+    if SettingsState.page == 5: VerticalLayout {
+        alignment: start; spacing: 0px;
+        SectionHeader { label: Copy.system_save_location_upper; }
+        Card {
+            VerticalLayout { spacing: 8px; padding-bottom: 8px;
+                for mode in [0, 1]: SelectionSurface {
+                    search-label: Copy.system_save_location;
+                    height: 58px; border-radius: 8px;
+                    selected: SettingsState.folder-index == mode;
+                    enabled: Interaction.editable;
+                    accessible-label: mode == 0 ? Copy.system_save_location_system_folders : Copy.system_save_location_single_folder;
+                    activated => { SettingsState.folder-index = mode; SettingsState.edit-request("folder-index"); }
+                    Rectangle {
+                        x: 14px; y: (parent.height - self.height) / 2;
+                        width: 16px; height: 16px; border-radius: 8px;
+                        border-width: 1.5px;
+                        border-color: SettingsState.folder-index == mode ? #ff6060 : #888892;
+                        background: transparent;
+                        Rectangle {
+                            x: 4px; y: 4px; width: 8px; height: 8px; border-radius: 4px;
+                            background: #ff6060; visible: SettingsState.folder-index == mode;
+                        }
+                    }
+                    Text { x: 42px; y: 9px; width: parent.width - 60px; height: 24px; text: mode == 0 ? Copy.system_save_location_system_folders : Copy.system_save_location_single_folder; color: #f1f1f2; font-size: 14px; font-weight: 500; vertical-alignment: center; }
+                    Text { x: 42px; y: 33px; width: parent.width - 60px; height: 18px; text: mode == 0 ? Copy.files_separate_summary : Copy.files_together_summary; color: #a1a1ab; font-size: 12px; wrap: word-wrap; }
+                }
+            }
+            Divider {}
+            Rectangle { height: 8px; }
+            if SettingsState.folder-index == 1: OutputFolder { label: Copy.files_all_captures; show-label: false; path: SettingsState.screenshots-path; custom: SettingsState.together-folder-custom; open => { SettingsState.action("open-screenshots"); } pick => { SettingsState.action("pick-folder-together"); } reset => { SettingsState.action("reset-folder-together"); } }
+            if SettingsState.folder-index == 0: VerticalLayout {
+                spacing: 0px;
+                OutputFolder { label: Copy.system_save_location_path_screenshots_gifs; path: SettingsState.screenshots-path; custom: SettingsState.screenshots-folder-custom; open => { SettingsState.action("open-screenshots"); } pick => { SettingsState.action("pick-folder-screenshots"); } reset => { SettingsState.action("reset-folder-screenshots"); } }
+                OutputFolder { label: Copy.sidebar_videos; path: SettingsState.videos-path; custom: SettingsState.videos-folder-custom; open => { SettingsState.action("open-videos"); } pick => { SettingsState.action("pick-folder-videos"); } reset => { SettingsState.action("reset-folder-videos"); } }
+            }
+            InlineError { message: SettingsState.field-errors[15]; }
+            InlineError { message: SettingsState.field-errors[27]; }
+            InlineError { message: SettingsState.field-errors[28]; }
+            InlineError { message: SettingsState.field-errors[29]; }
+            if SettingsState.folder-action-failed && SettingsState.action-error != "": ActionError { action: SettingsState.error-action; }
+            if SettingsState.folder-index == 1 || SettingsState.subfolder-error != "" || SettingsState.field-errors[17] != "": VerticalLayout {
+                spacing: 0px;
+                HorizontalLayout { height: 36px; padding-left: 12px; padding-right: 4px; spacing: 8px;
+                    Text { accessible-label: Copy.files_subfolder; text: Copy.files_subfolder; color: #f1f1f2; font-size: 13px; font-weight: 600; vertical-alignment: center; }
+                    Text { horizontal-stretch: 1; text: SettingsState.subfolder-preview == "" ? Copy.files_no_subfolder : SettingsState.subfolder-preview; color: #b8b8c2; font-size: 13px; vertical-alignment: center; wrap: no-wrap; overflow: elide; min-width: 0px; }
+                    VerticalLayout { alignment: center; InlineAction { show-icon: false; disclosure: true; expanded: SettingsState.subfolder-customization-expanded || SettingsState.subfolder-error != "" || SettingsState.field-errors[17] != ""; label: Copy.files_customize; activated => { SettingsState.subfolder-customization-expanded = !SettingsState.subfolder-customization-expanded; } } }
+                    VerticalLayout { alignment: center; ResetAction { label: Copy.system_single_folder_subfolder_template_reset; active: SettingsState.subfolder != SettingsState.subfolder-default; activated => { SettingsState.action("reset-subfolder"); } } }
+                }
+                Reveal { expanded: SettingsState.subfolder-customization-expanded || SettingsState.subfolder-error != "" || SettingsState.field-errors[17] != "";
+                    spacing: 0px;
+                    Divider {}
+                    VerticalLayout { padding-left: 16px; padding-right: 16px; padding-top: 10px; padding-bottom: 10px; spacing: 8px;
+                        HorizontalLayout { height: 34px; spacing: 8px;
+                            subfolder-field := TextField { subfolder: true; invalid: SettingsState.subfolder-error != ""; focus-request: SettingsState.focus-invalid == 2; label: Copy.system_single_folder_subfolder_template; text <=> SettingsState.subfolder; edited => { SettingsState.edit-request("subfolder"); } }
+                        }
+                        if SettingsState.subfolder-error != "" || SettingsState.field-errors[17] != "": InlineError { horizontal-inset: 0px; message: SettingsState.subfolder-error != "" ? SettingsState.subfolder-error : SettingsState.field-errors[17]; }
+                        HorizontalLayout { spacing: 6px; alignment: start;
+                            for token in ["%YEAR%", "%MONTH%", "%DAY%"]: TemplateToken {
+                                token: token;
+                                activated => { subfolder-field.insert(token); }
+                            }
+                        }
+                        Text { text: Copy.files_subfolder_hint; color: #888892; font-size: 12px; wrap: word-wrap; }
+                    }
+                }
+            }
+        }
+        Rectangle {
+            height: 38px;
+            filename-heading := Text { accessible-label: Copy.files_naming; x: 8px; y: 12px; height: 18px; width: parent.width - 160px; text: Copy.files_naming_upper; color: #a1a1ab; font-size: 12px; font-weight: 600; letter-spacing: 1.6px; vertical-alignment: center; }
+            HorizontalLayout {
+                x: parent.width - self.width - 16px; y: 7px; height: 28px;
+                alignment: end; spacing: 4px;
+                InlineAction { show-icon: false; disclosure: true; expanded: SettingsState.filename-customization-expanded || SettingsState.filename-error != "" || SettingsState.field-errors[16] != ""; label: Copy.files_customize; activated => { SettingsState.filename-customization-expanded = !SettingsState.filename-customization-expanded; } }
+                ResetAction { label: Copy.system_filename_template_reset; active: SettingsState.filename != SettingsState.filename-default; activated => { SettingsState.action("reset-filename"); } }
+            }
+        }
+        Card {
+            VerticalLayout { padding-left: 16px; padding-right: 16px; padding-top: 7px; padding-bottom: 7px; spacing: 6px;
+                Text { accessible-label: Copy.native_filename_preview_label; text: SettingsState.filename-preview == "" ? "" : SettingsState.filename-preview + (SettingsState.format-index == 1 ? ".jpg" : SettingsState.format-index == 2 ? ".webp" : ".png"); color: #b8b8c2; font-size: 13px; wrap: no-wrap; overflow: elide; min-width: 0px; }
+            }
+            Reveal { expanded: SettingsState.filename-customization-expanded || SettingsState.filename-error != "" || SettingsState.field-errors[16] != "";
+                spacing: 0px;
+                Divider {}
+                VerticalLayout { padding-left: 16px; padding-right: 16px; padding-top: 10px; padding-bottom: 10px; spacing: 8px;
+                    HorizontalLayout { height: 34px; spacing: 8px;
+                        filename-field := TextField { invalid: SettingsState.filename-error != ""; focus-request: SettingsState.focus-invalid == 1; label: Copy.system_filename_template; text <=> SettingsState.filename; edited => { SettingsState.edit-request("filename"); } }
+                    }
+                    if SettingsState.filename-error != "" || SettingsState.field-errors[16] != "": InlineError { horizontal-inset: 0px; message: SettingsState.filename-error != "" ? SettingsState.filename-error : SettingsState.field-errors[16]; }
+                    HorizontalLayout { alignment: start; spacing: 6px;
+                        for token in ["%TYPE%", "%APP%", "%DATE%", "%TIME%", "%DATETIME%"]: TemplateToken {
+                            token: token;
+                            activated => { filename-field.insert(token); }
+                        }
+                    }
+                    Text { text: Copy.files_tokens_hint; color: #888892; font-size: 12px; wrap: word-wrap; }
+                }
+            }
+        }
+    }
+    if SettingsState.page == 7: VerticalLayout {
+        alignment: start; spacing: 0px;
+        SectionHeader { label: Copy.sidebar_tools_upper; }
+        Card {
+            ToggleRow { error: SettingsState.field-errors[31]; label: Copy.selection_magnifier; checked <=> SettingsState.magnifier; edited => { SettingsState.edit-request("magnifier"); } }
+            Divider {}
+            ToggleRow { error: SettingsState.field-errors[33]; label: Copy.tools_copy_text_direct; checked <=> SettingsState.copy-text-direct; edited => { SettingsState.edit-request("copy-text-direct"); } }
+            Divider {}
+            SelectRow { error: SettingsState.field-errors[36]; label: Copy.tools_capture_delay; options: [Copy.capture_delay_off, Copy.capture_delay_3, Copy.capture_delay_5, Copy.screenshots_duration_10]; control-width: 120px; current-index <=> SettingsState.capture-delay-index; edited => { SettingsState.edit-request("capture-delay-index"); } }
+        }
+    }
+    if SettingsState.page == 6: VerticalLayout {
+        alignment: start; spacing: 0px;
+        SectionHeader {
+            label: Copy.about_support_upper; search-label: Copy.about_support;
+            ClickSurface {
+                x: parent.width - self.width - 8px; y: 10px; height: 22px; width: publisher.preferred-width;
+                enabled: Interaction.editable;
+                accessible-label: Copy.about_publisher;
+                activated => { SettingsState.action("developer-blog"); }
+                publisher := Text { text: Copy.about_publisher; color: parent.hovered ? #f1f1f2 : #888892; font-size: 12px; vertical-alignment: center; }
+            }
+        }
+        Card { vertical-padding: 4px;
+            AboutLink { label: Copy.about_feedback; icon: @image-url("assets/message-square.svg"); activated => { SettingsState.action("feedback"); } }
+            AboutLink { label: Copy.about_bug; icon: @image-url("assets/bug.svg"); activated => { SettingsState.action("bug"); } }
+            AboutLink { label: Copy.about_privacy; icon: @image-url("assets/shield-check.svg"); activated => { SettingsState.action("privacy"); } }
+        }
+        SectionHeader {
+            label: Copy.about_diagnostics_upper; search-label: Copy.about_diagnostics;
+            HorizontalLayout {
+                x: parent.width - self.width - 8px; y: 5px; width: 64px; height: 28px; spacing: 8px;
+                ClickSurface {
+                    width: 28px; height: 28px; border-radius: 6px;
+                    enabled: Interaction.editable; accessible-label: Copy.about_copy;
+                    background: self.pressed ? #ffffff17 : self.hovered ? #ffffff0f : transparent;
+                    activated => { SettingsState.action("copy-diagnostics"); }
+                    Icon { x: 5.5px; y: 5.5px; source: root.diagnostics-copied ? @image-url("assets/check.svg") : @image-url("assets/copy.svg"); colorize: parent.hovered || root.diagnostics-copied ? #f1f1f2 : #a1a1ab; }
+                }
+                ClickSurface {
+                    width: 28px; height: 28px; border-radius: 6px;
+                    enabled: Interaction.editable; accessible-label: Copy.about_logs;
+                    background: self.pressed ? #ffffff17 : self.hovered ? #ffffff0f : transparent;
+                    activated => { SettingsState.action("logs"); }
+                    Icon { x: 5.5px; y: 5.5px; source: @image-url("assets/folder-open.svg"); colorize: parent.hovered ? #f1f1f2 : #a1a1ab; }
+                }
+            }
+        }
+        if (SettingsState.error-action == "copy-diagnostics" || SettingsState.error-action == "logs") && SettingsState.action-error != "": ActionError { horizontal-inset: 8px; action: SettingsState.error-action; }
+        Card { vertical-padding: 12px;
+            VerticalLayout { padding-left: 4px; padding-right: 4px; spacing: 4px;
+                DiagnosticRow { label: Copy.about_version; value: Copy.version; }
+                DiagnosticRow { label: Copy.about_windows; value: SettingsState.windows-build == "" ? Copy.about_unavailable : SettingsState.windows-build; }
+                DiagnosticRow { label: Copy.about_channel; value: SettingsState.channel == "msix" ? "MSIX" : Copy.about_installation_installer; }
+                Rectangle { height: 4px; }
+                Divider {}
+                Rectangle { height: 8px; }
+                HorizontalLayout { spacing: 16px;
+                    Text { text: Copy.about_gpu; width: 164px; color: #a1a1ab; font-size: 13px; vertical-alignment: top; }
+                    VerticalLayout { alignment: start; spacing: 8px; min-width: 0px;
+                        if SettingsState.graphics-adapters.length == 0: Text { text: SettingsState.graphics == "" ? Copy.about_unavailable : SettingsState.graphics; color: #f1f1f2; font-size: 13px; wrap: word-wrap; }
+                        for adapter in SettingsState.graphics-adapters: VerticalLayout { alignment: start; spacing: 3px;
+                            Text { text: adapter.name; color: #f1f1f2; font-size: 13px; wrap: word-wrap; }
+                            Text { text: Copy.about_driver + " " + adapter.driver; color: #a1a1ab; font-size: 12px; wrap: word-wrap; }
+                        }
+                    }
+                }
+                HorizontalLayout { spacing: 16px;
+                    Text { text: Copy.about_displays; width: 164px; color: #a1a1ab; font-size: 13px; vertical-alignment: top; }
+                    VerticalLayout { alignment: start; spacing: 8px; min-width: 0px;
+                        if SettingsState.display-details.length == 0: Text { text: SettingsState.displays == "" ? Copy.about_unavailable : SettingsState.displays; color: #f1f1f2; font-size: 13px; wrap: word-wrap; }
+                        for display in SettingsState.display-details: VerticalLayout { alignment: start; spacing: 3px;
+                            Text { text: display.summary; color: #f1f1f2; font-size: 13px; wrap: word-wrap; }
+                            Text { text: "HDR · " + display.hdr; color: #a1a1ab; font-size: 12px; wrap: word-wrap; }
+                        }
+                    }
+                }
+            }
+        }
+        if SettingsState.channel == "msix": VerticalLayout {
+            spacing: 0px;
+            SectionHeader { label: Copy.about_more_upper; }
+            Card { vertical-padding: 4px;
+                AboutLink { label: Copy.about_rate; search-label: Copy.about_rate; icon: @image-url("assets/star.svg"); activated => { SettingsState.action("rate"); } }
+            }
+        }
+    }
+}

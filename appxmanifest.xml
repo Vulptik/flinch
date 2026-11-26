@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap5="http://schemas.microsoft.com/appx/manifest/uap/windows10/5"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap5 rescap">
+
+  <!--
+    Identity matches Partner Center; see resources/store-identity.json.
+    Local test certificates must use this Publisher. The Store signs submissions.
+  -->
+  <Identity
+    Name="Vulptik.Flinch"
+    Publisher="CN=3DD8D783-8062-4E47-A272-8E49C761F79E"
+    ProcessorArchitecture="x64"
+    Version="1.2.1.0" />
+
+  <Properties>
+    <DisplayName>Flinch</DisplayName>
+    <PublisherDisplayName>Vulptik</PublisherDisplayName>
+    <!-- Opaque installer variant avoids exposing Windows' tile color at the corners. -->
+    <Logo>Assets\InstallerLogo.png</Logo>
+  </Properties>
+
+  <Dependencies>
+    <!-- Windows 10 2004 (20H1) minimum — required for stable DXGI capture APIs -->
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.19041.0" MaxVersionTested="10.0.26100.0" />
+  </Dependencies>
+
+  <Resources>
+    <Resource Language="en-us" />
+    <Resource Language="fr-fr" />
+    <Resource Language="de-de" />
+    <Resource Language="es-es" />
+    <Resource Language="it-it" />
+  </Resources>
+
+  <Applications>
+    <Application Id="Flinch" Executable="flinch.exe" EntryPoint="Windows.FullTrustApplication">
+      <uap:VisualElements
+        DisplayName="Flinch"
+        Description="Zero-latency screen recorder and capture tool for Windows."
+        BackgroundColor="#17171A"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\Square44x44Logo.png">
+        <uap:DefaultTile
+          Square71x71Logo="Assets\Square71x71Logo.png" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap5:Extension Category="windows.startupTask" Executable="flinch.exe" EntryPoint="Windows.FullTrustApplication">
+          <uap5:StartupTask TaskId="FlinchStartup" Enabled="false" DisplayName="Flinch" />
+        </uap5:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+
+  <Capabilities>
+    <!--
+      runFullTrust: required for all Win32/desktop (non-UWP) apps.
+      Grants access to the full Windows API surface.
+    -->
+    <rescap:Capability Name="runFullTrust" />
+  </Capabilities>
+
+</Package>

@@ -1,0 +1,30 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs" xmlns:bal="http://wixtoolset.org/schemas/v4/wxs/bal" xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+  <Bundle Name="Flinch" Manufacturer="Flinch" Version="$(var.Version).0" UpgradeCode="D9C9E484-92BB-479F-9B04-307BD6BE41DE" IconSourceFile="$(var.Icon)">
+    <BootstrapperApplication Id="FlinchUI" SourceFile="$(var.CustomUI)" Secondary="yes">
+      <Payload SourceFile="$(var.Bridge)" />
+      <bal:WixPrerequisiteBootstrapperApplication LogoFile="$(var.Logo)" />
+    </BootstrapperApplication>
+    <Variable Name="InstallFolder" Type="string" Value="" Persisted="yes" />
+    <Variable Name="FlinchMsiProductCode" Type="string" Value="$(var.ProductCode)" />
+    <Variable Name="StartMenu" Type="numeric" Value="0" Persisted="yes" />
+    <Variable Name="DesktopShortcut" Type="numeric" Value="0" Persisted="yes" />
+    <util:RegistrySearch Id="RuntimeVersionSearch" Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" Value="Version" Variable="RuntimeVersion" Result="value" Bitness="always64" />
+    <util:RegistrySearch Id="RuntimeInstalledSearch" Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" Value="Installed" Variable="RuntimeInstalled" Result="value" Bitness="always64" />
+    <Chain>
+      <ExePackage Id="VisualCppRuntime" SourceFile="$(var.VcRedist)" DisplayName="Microsoft Visual C++ Runtime" DetectCondition="RuntimeInstalled = 1 AND RuntimeVersion &gt;= v$(var.VcVersion)" InstallArguments="/install /quiet /norestart" PerMachine="yes" Permanent="yes" Vital="yes" Cache="remove" bal:PrereqPackage="yes">
+        <ExitCode Value="0" Behavior="success" />
+        <ExitCode Value="3010" Behavior="scheduleReboot" />
+        <ExitCode Value="1641" Behavior="forceReboot" />
+        <ExitCode Behavior="error" />
+      </ExePackage>
+      <MsiPackage EnableFeatureSelection="yes" Id="FlinchMsi" SourceFile="$(var.Msi)" Vital="yes" Visible="no">
+        <MsiProperty Name="MSIRESTARTMANAGERCONTROL" Value="0" />
+        <MsiProperty Name="MSIRMSHUTDOWN" Value="1" />
+        <MsiProperty Name="MSIDISABLERMRESTART" Value="1" />
+        <MsiProperty Name="INSTALLFOLDER" Value="[InstallFolder]" />
+        <MsiProperty Name="STARTMENU" Value="[StartMenu]" />
+        <MsiProperty Name="DESKTOPSHORTCUT" Value="[DesktopShortcut]" />
+      </MsiPackage>
+    </Chain>
+  </Bundle>
+</Wix>

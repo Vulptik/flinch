@@ -1,0 +1,487 @@
+import { Typography, Interaction, Icon } from "widgets.slint";
+
+// One tray menu row. The host builds the rows, so the same list drives the native fallback menu.
+export struct TrayMenuRow { id: string, label: string, detail: string, icon: string, separator: bool, accent: bool, submenu: bool }
+export struct TrayRecentRow { name: string, time: string, kind: string, thumbnail: image, has-thumbnail: bool }
+
+component MenuIcon inherits Icon {
+    in property <string> name;
+    width: 16px; height: 16px;
+    source:
+        name == "camera" ? @image-url("assets/camera.svg") :
+        name == "pencil" ? @image-url("assets/pencil.svg") :
+        name == "type" ? @image-url("assets/type.svg") :
+        name == "pipette" ? @image-url("assets/pipette.svg") :
+        name == "scan" ? @image-url("assets/scan.svg") :
+        name == "record" ? @image-url("assets/circle-dot.svg") :
+        name == "stop" ? @image-url("assets/square.svg") :
+        name == "pause" ? @image-url("assets/pause.svg") :
+        name == "resume" ? @image-url("assets/play.svg") :
+        name == "history" ? @image-url("assets/history.svg") :
+        name == "keyboard" ? @image-url("assets/keyboard.svg") :
+        name == "settings" ? @image-url("assets/settings.svg") :
+        name == "power" ? @image-url("assets/power.svg") :
+        name == "folder" ? @image-url("assets/folder-open.svg") :
+        name == "copy" ? @image-url("assets/copy.svg") :
+        name == "pin" ? @image-url("assets/pin.svg") :
+        name == "video" ? @image-url("assets/video.svg") :
+        name == "gif" ? @image-url("assets/film.svg") :
+        name == "timer" ? @image-url("assets/timer.svg") :
+        name == "check" ? @image-url("assets/check.svg") :
+        @image-url("assets/image.svg");
+}
+
+component MenuSeparator inherits Rectangle {
+    height: 9px;
+    Rectangle { x: 10px; y: 4px; width: parent.width - 20px; height: 1px; background: #2c2c32; }
+}
+
+// Menus appear the way Windows 11 menus do: content slides in from the side it opens from while
+// the host fades the whole window up, surface and shadow included (`tray_menu/fade.rs`); content
+// fading alone left the surface popping in. Hiding is instant, so closing never lags. Motion
+// follows the Windows animation setting.
+component Reveal inherits Rectangle {
+    in property <bool> shown;
+    in property <length> slide-x;
+    in property <length> slide-y;
+    x: root.shown ? 0px : root.slide-x;
+    y: root.shown ? 0px : root.slide-y;
+    opacity: root.shown ? 1 : 0;
+    animate x, y { duration: Interaction.motion-enabled && root.shown ? 170ms : 0ms; easing: cubic-bezier(0.1, 0.9, 0.2, 1); }
+}
+
+// The window's own border. DWM rounds the corners to 8px.
+component MenuFrame inherits Rectangle {
+    border-radius: 8px; border-width: 1px; border-color: #39393e; background: transparent;
+}
+
+export component TrayMenuWindow inherits Window {
+    title: "Flinch";
+    no-frame: true; resize-border-width: 0px; always-on-top: true;
+    background: #1c1c1f;
+    default-font-family: Typography.text-family; default-font-size: 14px;
+    in property <[TrayMenuRow]> rows;
+    // The submenu is open: its row keeps the highlight while the pointer is over the submenu.
+    in property <int> submenu-row: -1;
+    in-out property <int> highlight: -1;
+    // Set once the window is on screen; the slide starts from the taskbar side.
+    in property <bool> shown;
+    in property <length> slide-x;
+    in property <length> slide-y;
+    // The host sizes the window before it is shown: Slint lays out repeated rows only when it
+    // paints, too late to place the menu. It measures labels through measure-text.
+    in property <length> menu-width: 232px;
+    in property <length> menu-height: 8px;
+    in property <string> measure-text;
+    out property <length> measured-width: measurer.preferred-width;
+    // What the rows actually need once painted; tests hold the host metrics to it.
+    out property <length> natural-height: layout.preferred-height;
+    preferred-width: root.menu-width; min-width: root.menu-width; max-width: root.menu-width;
+    preferred-height: root.menu-height; min-height: root.menu-height; max-height: root.menu-height;
+    callback activate(string);
+    // The row under the pointer, or -1 when the pointer left the rows.
+    callback hover-row(int);
+    // A submenu row opened by click, Return or Right; true when it was the keyboard.
+    callback open-submenu(int, bool);
+    callback dismiss();
+    public function focus-menu() { keys.focus(); }
+
+    measurer := Text { visible: false; text: root.measure-text; font-size: 14px; }
+    Reveal {
+    width: root.width; height: root.height;
+    shown: root.shown; slide-x: root.slide-x; slide-y: root.slide-y;
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape { root.dismiss(); return accept; }
+            if root.rows.length == 0 { return reject; }
+            if event.text == Key.DownArrow {
+                Interaction.keyboard-mode = true;
+                root.highlight = root.highlight < 0 ? 0 : Math.mod(root.highlight + 1, root.rows.length);
+                return accept;
+            }
+            if event.text == Key.UpArrow {
+                Interaction.keyboard-mode = true;
+                root.highlight = root.highlight <= 0 ? root.rows.length - 1 : root.highlight - 1;
+                return accept;
+            }
+            if root.highlight >= 0 && root.highlight < root.rows.length {
+                if event.text == Key.RightArrow && root.rows[root.highlight].submenu {
+                    Interaction.keyboard-mode = true;
+                    root.open-submenu(root.highlight, true);
+                    return accept;
+                }
+                if event.text == Key.Return || event.text == " " {
+                    Interaction.keyboard-mode = true;
+                    if root.rows[root.highlight].submenu {
+                        root.open-submenu(root.highlight, true);
+                    } else {
+                        root.activate(root.rows[root.highlight].id);
+                    }
+                    return accept;
+                }
+            }
+            return reject;
+        }
+        layout := VerticalLayout {
+            padding: 4px;
+            VerticalLayout {
+                for row[index] in root.rows: VerticalLayout {
+                    if row.separator: MenuSeparator { }
+                    item := Rectangle {
+                        height: 32px; border-radius: 5px;
+                        accessible-role: button;
+                        accessible-label: row.label;
+                        accessible-action-default => { if row.submenu { root.open-submenu(index, false); } else { root.activate(row.id); } }
+                        private property <bool> lit: root.highlight == index || root.submenu-row == index;
+                        background: hit.pressed ? #ffffff18 : self.lit ? #ffffff10 : transparent;
+                        animate background { duration: Interaction.motion-enabled ? 90ms : 0ms; easing: ease-out; }
+                        hit := TouchArea {
+                            changed has-hover => {
+                                if self.has-hover {
+                                    Interaction.keyboard-mode = false;
+                                    root.highlight = index;
+                                    root.hover-row(index);
+                                } else if root.highlight == index && root.submenu-row != index {
+                                    root.highlight = -1;
+                                    root.hover-row(-1);
+                                }
+                            }
+                            clicked => {
+                                if row.submenu {
+                                    root.open-submenu(index, false);
+                                } else {
+                                    root.activate(row.id);
+                                }
+                            }
+                        }
+                        HorizontalLayout {
+                            padding-left: 10px; padding-right: 10px; spacing: 10px;
+                            Rectangle {
+                                width: 16px;
+                                MenuIcon {
+                                    y: (parent.height - self.height) / 2;
+                                    name: row.icon;
+                                    colorize: row.accent ? #ff6060 : item.lit ? #f1f1f2 : #a8a8ae;
+                                }
+                            }
+                            Text {
+                                horizontal-stretch: 1; vertical-alignment: center;
+                                text: row.label; color: #f1f1f2; overflow: elide;
+                            }
+                            if row.detail != "": Text {
+                                vertical-alignment: center;
+                                text: row.detail; color: #888892; font-size: 12px;
+                            }
+                            if row.submenu: Rectangle {
+                                width: 12px;
+                                Icon {
+                                    y: (parent.height - self.height) / 2;
+                                    width: 12px; height: 12px;
+                                    source: @image-url("assets/chevron-right.svg");
+                                    colorize: item.lit ? #f1f1f2 : #888892;
+                                }
+                            }
+                        }
+                        // Keyboard focus is the highlight itself, as in Windows menus.
+                        Rectangle {
+                            border-radius: parent.border-radius;
+                            border-width: Interaction.keyboard-mode && root.highlight == index && keys.has-focus ? 1px : 0px;
+                            border-color: #ff606080;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    }
+    MenuFrame { }
+}
+
+export component TrayRecentWindow inherits Window {
+    title: "Flinch";
+    no-frame: true; resize-border-width: 0px; always-on-top: true;
+    background: #1c1c1f;
+    default-font-family: Typography.text-family; default-font-size: 14px;
+    in property <[TrayRecentRow]> rows;
+    in property <string> empty-label;
+    in property <string> copy-label;
+    in property <string> pin-label;
+    in property <string> show-label;
+    in property <string> folder-label;
+    // Rows, then the folder row at index rows.length.
+    in-out property <int> highlight: -1;
+    // Which part of the highlighted capture row the keyboard is on: 0 open, 1 pin (screenshots
+    // only), 2 copy, 3 show.
+    in-out property <int> part: 0;
+    in property <bool> shown;
+    in property <length> slide-x;
+    in property <length> slide-y;
+    out property <length> menu-width: 300px;
+    // Room for a capture name beside an open row's buttons; the host shortens names to fit it.
+    out property <length> name-width: root.menu-width - 8px - 78px - 8px - 96px;
+    // Sized by the host, as the menu is.
+    in property <length> menu-height: 8px;
+    out property <length> natural-height: layout.preferred-height;
+    preferred-width: root.menu-width; min-width: root.menu-width; max-width: root.menu-width;
+    preferred-height: root.menu-height; min-height: root.menu-height; max-height: root.menu-height;
+    callback act(int, string);
+    callback folder();
+    callback back();
+    callback hovered(bool);
+    public function focus-menu() { keys.focus(); }
+    private property <int> count: root.rows.length + 1;
+
+    function activate-highlight() {
+        if root.highlight == root.rows.length { root.folder(); }
+        else if root.highlight >= 0 {
+            root.act(root.highlight, root.part == 1 ? "pin" : root.part == 2 ? "copy" : root.part == 3 ? "show" : "open");
+        }
+    }
+
+    TouchArea {
+        changed has-hover => { root.hovered(self.has-hover); }
+    }
+    Reveal {
+    width: root.width; height: root.height;
+    shown: root.shown; slide-x: root.slide-x; slide-y: root.slide-y;
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape || event.text == Key.LeftArrow { root.back(); return accept; }
+            if event.text == Key.DownArrow {
+                Interaction.keyboard-mode = true;
+                root.part = 0;
+                root.highlight = root.highlight < 0 ? (root.rows.length == 0 ? root.rows.length : 0) : Math.mod(root.highlight + 1, root.count);
+                if root.rows.length == 0 { root.highlight = 0; }
+                return accept;
+            }
+            if event.text == Key.UpArrow {
+                Interaction.keyboard-mode = true;
+                root.part = 0;
+                root.highlight = root.highlight <= 0 ? root.count - 1 : root.highlight - 1;
+                if root.rows.length == 0 { root.highlight = 0; }
+                return accept;
+            }
+            // Shift+Tab arrives as Backtab.
+            if (event.text == Key.Tab || event.text == Key.Backtab) && root.highlight >= 0 && root.highlight < root.rows.length {
+                Interaction.keyboard-mode = true;
+                let backward = event.text == Key.Backtab || event.modifiers.shift;
+                root.part = Math.mod(root.part + (backward ? 3 : 1), 4);
+                // Recordings and GIFs have no pin button.
+                if root.part == 1 && root.rows[root.highlight].kind != "image" {
+                    root.part = backward ? 0 : 2;
+                }
+                return accept;
+            }
+            if event.text == Key.Return || event.text == " " {
+                Interaction.keyboard-mode = true;
+                root.activate-highlight();
+                return accept;
+            }
+            return reject;
+        }
+        layout := VerticalLayout {
+            padding: 4px;
+            if root.rows.length == 0: HorizontalLayout {
+                height: 36px; padding-left: 10px;
+                Text { text: root.empty-label; color: #888892; vertical-alignment: center; }
+            }
+            for row[index] in root.rows: item := Rectangle {
+                height: 52px; border-radius: 5px;
+                accessible-role: button;
+                accessible-label: row.name + ", " + row.time;
+                accessible-action-default => { root.act(index, "open"); }
+                private property <bool> lit: root.highlight == index;
+                background: open-hit.pressed ? #ffffff18 : self.lit ? #ffffff10 : transparent;
+                animate background { duration: Interaction.motion-enabled ? 90ms : 0ms; easing: ease-out; }
+                open-hit := TouchArea {
+                    changed has-hover => {
+                        if self.has-hover { Interaction.keyboard-mode = false; root.highlight = index; root.part = 0; root.hovered(true); }
+                    }
+                    clicked => { root.act(index, "open"); }
+                }
+                tile := Rectangle {
+                    x: 6px; y: 7px; width: 60px; height: 38px;
+                    border-radius: 4px; background: #111113; clip: true;
+                    // Thumbnails arrive after the menu opens; they fade in over the type icon.
+                    MenuIcon {
+                        x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                        name: row.kind; colorize: #666670;
+                        opacity: row.has-thumbnail ? 0 : 1;
+                        animate opacity { duration: Interaction.motion-enabled ? 180ms : 0ms; easing: ease-out; }
+                    }
+                    Image {
+                        width: parent.width; height: parent.height;
+                        source: row.thumbnail; image-fit: cover;
+                        opacity: row.has-thumbnail ? 1 : 0;
+                        animate opacity { duration: Interaction.motion-enabled ? 180ms : 0ms; easing: ease-out; }
+                    }
+                }
+                Rectangle {
+                    x: tile.x; y: tile.y; width: tile.width; height: tile.height;
+                    border-radius: 4px; border-width: 1px; border-color: #ffffff12;
+                }
+                private property <bool> pinnable: row.kind == "image";
+                private property <length> actions-width: item.lit ? (self.pinnable ? 96px : 64px) : 0px;
+                Text {
+                    x: 78px; y: 8px; height: 20px;
+                    width: parent.width - self.x - 8px - item.actions-width;
+                    text: row.name; color: #f1f1f2; overflow: elide; vertical-alignment: center;
+                }
+                Text {
+                    x: 78px; y: 27px; height: 18px;
+                    width: parent.width - self.x - 8px - item.actions-width;
+                    text: row.time; color: #888892; font-size: 12px; vertical-alignment: center;
+                }
+                for action[slot] in ["pin", "copy", "show"]: action-button := Rectangle {
+                    visible: slot != 0 || item.pinnable;
+                    opacity: item.lit ? 1 : 0;
+                    animate opacity { duration: Interaction.motion-enabled ? 100ms : 0ms; easing: ease-out; }
+                    x: parent.width - 98px + slot * 32px; y: (parent.height - self.height) / 2;
+                    width: 30px; height: 30px; border-radius: 5px;
+                    accessible-role: button;
+                    accessible-label: slot == 0 ? root.pin-label : slot == 1 ? root.copy-label : root.show-label;
+                    accessible-action-default => { root.act(index, action); }
+                    private property <bool> focused: Interaction.keyboard-mode && item.lit && root.part == slot + 1;
+                    background: button-hit.pressed ? #ffffff26 : button-hit.has-hover || self.focused ? #ffffff1c : transparent;
+                    button-hit := TouchArea { enabled: item.lit && action-button.visible; clicked => { root.act(index, action); } }
+                    MenuIcon {
+                        x: (parent.width - self.width) / 2; y: (parent.height - self.height) / 2;
+                        name: slot == 0 ? "pin" : slot == 1 ? "copy" : "folder";
+                        colorize: button-hit.has-hover || action-button.focused ? #f1f1f2 : #a8a8ae;
+                    }
+                    Rectangle {
+                        border-radius: parent.border-radius;
+                        border-width: action-button.focused ? 1px : 0px; border-color: #ff606080;
+                    }
+                }
+                Rectangle {
+                    border-radius: parent.border-radius;
+                    border-width: Interaction.keyboard-mode && item.lit && root.part == 0 ? 1px : 0px;
+                    border-color: #ff606080;
+                }
+            }
+            MenuSeparator { }
+            folder-item := Rectangle {
+                height: 32px; border-radius: 5px;
+                accessible-role: button;
+                accessible-label: root.folder-label;
+                accessible-action-default => { root.folder(); }
+                private property <bool> lit: root.highlight == root.rows.length;
+                background: folder-hit.pressed ? #ffffff18 : self.lit ? #ffffff10 : transparent;
+                animate background { duration: Interaction.motion-enabled ? 90ms : 0ms; easing: ease-out; }
+                folder-hit := TouchArea {
+                    changed has-hover => {
+                        if self.has-hover { Interaction.keyboard-mode = false; root.highlight = root.rows.length; root.part = 0; root.hovered(true); }
+                    }
+                    clicked => { root.folder(); }
+                }
+                HorizontalLayout {
+                    padding-left: 10px; padding-right: 10px; spacing: 10px;
+                    Rectangle {
+                        width: 16px;
+                        MenuIcon { y: (parent.height - self.height) / 2; name: "folder"; colorize: folder-item.lit ? #f1f1f2 : #a8a8ae; }
+                    }
+                    Text { vertical-alignment: center; text: root.folder-label; color: #f1f1f2; overflow: elide; }
+                }
+                Rectangle {
+                    border-radius: parent.border-radius;
+                    border-width: Interaction.keyboard-mode && folder-item.lit ? 1px : 0px;
+                    border-color: #ff606080;
+                }
+            }
+        }
+    }
+    }
+    MenuFrame { }
+}
+
+// A submenu of mutually exclusive choices, such as Capture Delay: the chosen one has a check.
+export component TrayChoiceWindow inherits Window {
+    title: "Flinch";
+    no-frame: true; resize-border-width: 0px; always-on-top: true;
+    background: #1c1c1f;
+    default-font-family: Typography.text-family; default-font-size: 14px;
+    in property <[string]> choices;
+    in property <int> selected: -1;
+    in-out property <int> highlight: -1;
+    in property <bool> shown;
+    in property <length> slide-x;
+    in property <length> slide-y;
+    // Sized by the host from the measured labels, as the menu is.
+    in property <length> menu-width: 180px;
+    in property <length> menu-height: 8px;
+    out property <length> natural-height: layout.preferred-height;
+    preferred-width: root.menu-width; min-width: root.menu-width; max-width: root.menu-width;
+    preferred-height: root.menu-height; min-height: root.menu-height; max-height: root.menu-height;
+    callback choose(int);
+    callback back();
+    callback hovered(bool);
+    public function focus-menu() { keys.focus(); }
+
+    TouchArea {
+        changed has-hover => { root.hovered(self.has-hover); }
+    }
+    Reveal {
+    width: root.width; height: root.height;
+    shown: root.shown; slide-x: root.slide-x; slide-y: root.slide-y;
+    keys := FocusScope {
+        key-pressed(event) => {
+            if event.text == Key.Escape || event.text == Key.LeftArrow { root.back(); return accept; }
+            if root.choices.length == 0 { return reject; }
+            if event.text == Key.DownArrow {
+                Interaction.keyboard-mode = true;
+                root.highlight = root.highlight < 0 ? 0 : Math.mod(root.highlight + 1, root.choices.length);
+                return accept;
+            }
+            if event.text == Key.UpArrow {
+                Interaction.keyboard-mode = true;
+                root.highlight = root.highlight <= 0 ? root.choices.length - 1 : root.highlight - 1;
+                return accept;
+            }
+            if (event.text == Key.Return || event.text == " ") && root.highlight >= 0 && root.highlight < root.choices.length {
+                Interaction.keyboard-mode = true;
+                root.choose(root.highlight);
+                return accept;
+            }
+            return reject;
+        }
+        layout := VerticalLayout {
+            padding: 4px;
+            for choice[index] in root.choices: item := Rectangle {
+                height: 32px; border-radius: 5px;
+                accessible-role: button;
+                accessible-label: choice;
+                accessible-checked: root.selected == index;
+                accessible-action-default => { root.choose(index); }
+                private property <bool> lit: root.highlight == index;
+                background: hit.pressed ? #ffffff18 : self.lit ? #ffffff10 : transparent;
+                animate background { duration: Interaction.motion-enabled ? 90ms : 0ms; easing: ease-out; }
+                hit := TouchArea {
+                    changed has-hover => {
+                        if self.has-hover { Interaction.keyboard-mode = false; root.highlight = index; root.hovered(true); }
+                    }
+                    clicked => { root.choose(index); }
+                }
+                HorizontalLayout {
+                    padding-left: 10px; padding-right: 10px; spacing: 10px;
+                    Rectangle {
+                        width: 16px;
+                        if root.selected == index: MenuIcon {
+                            y: (parent.height - self.height) / 2;
+                            name: "check";
+                            colorize: item.lit ? #f1f1f2 : #a8a8ae;
+                        }
+                    }
+                    Text { vertical-alignment: center; text: choice; color: #f1f1f2; overflow: elide; }
+                }
+                Rectangle {
+                    border-radius: parent.border-radius;
+                    border-width: Interaction.keyboard-mode && item.lit && keys.has-focus ? 1px : 0px;
+                    border-color: #ff606080;
+                }
+            }
+        }
+    }
+    }
+    MenuFrame { }
+}

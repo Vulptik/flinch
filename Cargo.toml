@@ -1,0 +1,208 @@
+# Package metadata
+[package]
+name = "flinch"
+version = "1.2.1"
+edition = "2024"
+license = "GPL-3.0-only"
+
+[workspace]
+members = ["crates/settings", "crates/installer", "crates/xtask", "crates/video-engine", "crates/video-lab", "crates/blur"]
+default-members = ["."]
+resolver = "3"
+exclude = ["vendor/i-slint-renderer-skia", "vendor/smallpeg"]
+
+[patch.crates-io]
+# Windows LCD text rendering; see vendor/i-slint-renderer-skia/FLINCH-PATCH.md.
+i-slint-renderer-skia = { path = "vendor/i-slint-renderer-skia" }
+# Multithreaded JPG encoding; see vendor/smallpeg/FLINCH-PATCH.md.
+smallpeg = { path = "vendor/smallpeg" }
+
+# The GUI entry point has no unit tests; avoid linking a redundant test executable.
+[[bin]]
+name = "flinch"
+path = "src/main.rs"
+test = false
+bench = false
+required-features = ["desktop-app"]
+
+[features]
+default = ["native-settings", "desktop-app"]
+desktop-app = []
+msix = []
+# Isolated profile for `cargo xtask test:speed:desktop` (see src/probe_profile.rs); never shipped.
+speed-probe = []
+native-settings = ["flinch-settings/ui", "windows/Win32_Networking_WinHttp", "dep:semver"]
+
+# The native engine's per-pixel GIF, colour conversion and audio loops run about 10x slower
+# unoptimized (measured: a 10 s 692x1196 GIF took 19 s in debug, 2 s in release).
+# Dev builds optimize the engine and its GIF crates, so a debug Flinch and the recording tests
+# show real speeds; debug assertions and the rest of the app are unchanged.
+[profile.dev.package.flinch-video-engine]
+opt-level = 3
+
+# A blur drag repaints its region every frame; unoptimized, a medium region falls far behind.
+[profile.dev.package.flinch-blur]
+opt-level = 3
+
+# The JPG encoder: unoptimized, a 1440p screenshot would take seconds in debug builds.
+[profile.dev.package.smallpeg]
+opt-level = 3
+
+# Quiet tests run the real OCR models.
+[profile.dev.package.rten]
+opt-level = 3
+
+[profile.dev.package.rten-base]
+opt-level = 3
+
+[profile.dev.package.rten-gemm]
+opt-level = 3
+
+[profile.dev.package.rten-simd]
+opt-level = 3
+
+[profile.dev.package.rten-tensor]
+opt-level = 3
+
+[profile.dev.package.rten-vecmath]
+opt-level = 3
+
+[profile.dev.package.gif]
+opt-level = 3
+
+[profile.dev.package.weezl]
+opt-level = 3
+
+[profile.dev.package.color_quant]
+opt-level = 3
+
+# Frame-heavy exports scale and composite many 1080p frames; unoptimized
+# raster crates would make them far too slow in dev builds.
+[profile.dev.package.tiny-skia]
+opt-level = 3
+
+[profile.dev.package.tiny-skia-path]
+opt-level = 3
+
+[profile.dev.package.png]
+opt-level = 3
+
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.fdeflate]
+opt-level = 3
+
+[profile.release-store]
+inherits = "release"
+strip = true
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+[profile.release-store.build-override]
+strip = false
+
+[build-dependencies]
+winresource = "0.1.31" # Executable icon, version info and manifest
+
+[dependencies]
+# Workspace crates
+flinch-settings = { path = "crates/settings", default-features = false }
+flinch-video-engine = { path = "crates/video-engine" } # Records every video and GIF (docs/RECORDING_ENGINE.md)
+flinch-blur = { path = "crates/blur" }
+
+# mimalloc returns freed pages to the OS, unlike the default Windows heap.
+mimalloc = "0.1.50"
+
+# Windows integration
+tray-icon = { version = "0.26.1", default-features = false }
+global-hotkey = "0.10.0" # Shortcuts on the platform owner thread
+winreg = "0.56.0"        # Run-key startup registration for installer builds
+arboard = "3.6"          # Clipboard
+dirs = "7.0.0"           # Known folders
+sys-locale = "0.3"       # Interface language detection
+
+# Runtime, serialization and errors
+tokio = { version = "1.53.1", features = ["rt-multi-thread", "sync", "fs", "macros", "time"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0.102"
+thiserror = "2.0"
+chrono = { version = "0.4.44", features = ["serde"] }
+semver = { version = "1.0", optional = true } # Website version manifest comparison
+tempfile = "3.27.0"      # Staged capture files published without overwriting
+
+# Screenshots, OCR and sound
+image = "0.25.10"
+png = "0.18.1"
+# Not used directly: selects zlib-rs for every flate2 user, including png's Default/Best PNG
+# compression, which ran 2.7× faster than miniz_oxide on Flinch screenshots.
+flate2 = { version = "1.1.11", features = ["zlib-rs"] }
+webp = { version = "0.3.1", features = ["img"] }
+smallpeg = { version = "0.17.0", features = ["parallel"] } # JPG screenshots; vendored and threaded, see [patch]
+rayon = "1.12.0"         # Parallel pixel conversion
+rten = "0.28"            # Pure-Rust inference for the bundled OCR models
+rten-tensor = "0.28"
+rodio = { version = "0.23.0", default-features = false, features = ["mp3", "playback"] } # Notification sound
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "fmt", "chrono"] }
+tracing-appender = "0.2.5"
+
+# Windows API bindings. windows 0.62 is the latest release; windows-core and windows-numerics
+# stay on the 0.62-compatible versions it is built on (their 0.100 releases do not mix).
+windows-numerics = "0.3.1"
+windows = { version = "0.62.2", features = [
+    # Foundation, COM and WinRT
+    "Foundation",
+    "System",
+    "Win32_Foundation",
+    "Win32_System_Com",
+    "Win32_System_WinRT",
+    "Win32_System_LibraryLoader",
+    "Win32_System_SystemInformation",
+    "Win32_System_Threading",
+    "Win32_System_Registry",          # AUMID registration
+    "Win32_System_DataExchange",      # Clipboard
+    "Win32_System_Memory",            # Clipboard global memory
+    "Win32_Storage",
+    "Win32_Storage_FileSystem",       # Disk space checks
+    "Win32_Globalization",            # Recent Captures date and time format
+    # Toast notifications
+    "ApplicationModel",
+    "Data_Xml_Dom",
+    "UI_Notifications",
+    # Screen capture
+    "Graphics_Capture",
+    "Graphics_DirectX",
+    "Graphics_DirectX_Direct3D11",
+    "Win32_System_WinRT_Graphics_Capture",
+    "Win32_System_WinRT_Direct3D11",
+    "Win32_Graphics_Direct3D",
+    "Win32_Graphics_Direct3D10",      # Driver version in diagnostics
+    "Win32_Graphics_Direct3D11",
+    "Win32_Graphics_Dxgi",
+    "Win32_Graphics_Dxgi_Common",
+    # Overlays, windows and drawing
+    "Win32_Graphics_Gdi",
+    "Win32_Graphics_Dwm",
+    "Win32_Graphics_Direct2D",
+    "Win32_Graphics_Direct2D_Common",
+    "Win32_Graphics_DirectWrite",
+    "Win32_Graphics_DirectComposition", # Pin to Screen
+    "Win32_UI_Controls",
+    "Win32_UI_HiDpi",
+    "Win32_UI_Input_KeyboardAndMouse",
+    "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_UI_WindowsAndMessaging",
+    # Tests
+    "Win32_System_ProcessStatus",     # Process memory and handle counts
+] }
+
+[dev-dependencies]
+windows-core = "0.62.2" # Scripted COM capture interfaces; no desktop duplication in quiet tests
+slint = { version = "=1.18.1", default-features = false, features = ["std", "renderer-software"] } # Headless presenter regressions only
+serial_test = "4.0.1"

@@ -1,0 +1,24 @@
+# Text is stored and checked out with LF; Windows scripts keep CRLF.
+# Keep .editorconfig's end_of_line in step with these rules.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# Binary assets: never normalized or diffed as text. Cursors and icons are
+# reviewed byte-exact copies (see docs/code-standards.md).
+*.png binary
+*.ico binary
+*.cur binary
+*.mp3 binary
+*.onnx binary
+
+# Vendored third-party sources, kept unmodified and hash-checked.
+vendor/** linguist-vendored
+crates/video-engine/native/amf/** linguist-vendored
+crates/video-engine/native/nvenc/** linguist-vendored
+crates/video-engine/native/vpl/** linguist-vendored
+resources/icons/fluent/** linguist-vendored
+resources/cursors/** linguist-vendored
+
+# Generated
+Cargo.lock linguist-generated

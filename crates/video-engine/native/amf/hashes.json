@@ -1,0 +1,230 @@
+[
+  {
+    "path": "components/Ambisonic2SRenderer.h",
+    "sha256": "27770ae77d2f7a16eca9ab1f8b9ce87cf0c0350425b950bdd39189c2c91a519a"
+  },
+  {
+    "path": "components/AMFXInput.h",
+    "sha256": "41303e3038e8e5717e174cd3e37625163d244bd3ed0bc2d47d8ad347cce65cc5"
+  },
+  {
+    "path": "components/AudioCapture.h",
+    "sha256": "05a9ebc32217e69b6c4659f4744dbda9e5a2792f3e56bc1bcf61c15dcfd46cab"
+  },
+  {
+    "path": "components/Capture.h",
+    "sha256": "bbe91a1e744685a36269d3b6af9cd36d9716ee748c8d0ed95255a6a42b46892f"
+  },
+  {
+    "path": "components/ChromaKey.h",
+    "sha256": "a3a89490d44adaffc2fa2cccc14313f8f65e5af7a6431d89d85bd80e36c628a1"
+  },
+  {
+    "path": "components/ColorSpace.h",
+    "sha256": "4ef6392bb4b9c6b05d00b5cd1486b99866e40e61449206a3a515063e4ffd289b"
+  },
+  {
+    "path": "components/Component.h",
+    "sha256": "f3f18680d55a65fdf5e0351d3fde1dcd9bdd2d6caec268c8c915c4227ffa1edc"
+  },
+  {
+    "path": "components/ComponentCaps.h",
+    "sha256": "2479eb2a6174a1b63552c509abac1b701eddcab5a5eac5a7f4d9f40274d588b4"
+  },
+  {
+    "path": "components/CursorCapture.h",
+    "sha256": "7c22337ff313320bd7fe20ef0fb00756735012367a5daa7c621725030f578863"
+  },
+  {
+    "path": "components/DisplayCapture.h",
+    "sha256": "9c661b9d23dc240e59758246865d8a3a3162b5c61077b54417d07bb0b9d2fa2c"
+  },
+  {
+    "path": "components/FFMPEGAudioConverter.h",
+    "sha256": "9dde7e850c8bdecda82b0cee1b331294f6cc91b32b1d1504344a023cd4dda8af"
+  },
+  {
+    "path": "components/FFMPEGAudioDecoder.h",
+    "sha256": "92f50d789bc18d5ebd143b2925e124594a89110eef7efaa8189eb063bf2f3aa8"
+  },
+  {
+    "path": "components/FFMPEGAudioEncoder.h",
+    "sha256": "2493067de9b3f540ffaae8a6466e57ef75af4772f037a81785b11ee9511029f5"
+  },
+  {
+    "path": "components/FFMPEGComponents.h",
+    "sha256": "87a9ae9480c3af6210b1282d1768e36673fcc1ef4970afa6edaa74481cf0831b"
+  },
+  {
+    "path": "components/FFMPEGEncoderAV1.h",
+    "sha256": "5d64b7d2d50ca17ba601885dcdb51bb16ef4dccf88323437967e8524f26194bc"
+  },
+  {
+    "path": "components/FFMPEGEncoderH264.h",
+    "sha256": "3dae38db05bc55af525000c28559ff76625e0cddc2ad2c4c2af52eab69e915bc"
+  },
+  {
+    "path": "components/FFMPEGEncoderHEVC.h",
+    "sha256": "3ad5cc5d3284b253a671499efa29c7a46b83a6e6373aad7142c7adcbfae31875"
+  },
+  {
+    "path": "components/FFMPEGFileDemuxer.h",
+    "sha256": "be992e14086b04e2a7b5503471a6c262c58fda163c45ad6d00f8e425d9f4a820"
+  },
+  {
+    "path": "components/FFMPEGFileMuxer.h",
+    "sha256": "3fefbe1aa7aaa4c000a97efb2e5ba26dc87ec15d11b07ceb0f43c768a1d589a2"
+  },
+  {
+    "path": "components/FFMPEGVideoDecoder.h",
+    "sha256": "297b0ab2291baeb44f30f03ffbf791a5603289ab34f625d60a33150f2be1f7b6"
+  },
+  {
+    "path": "components/FRC.h",
+    "sha256": "1aa006ed84ff6be7d9283379a6688f003c4a25df0673c07096eb74e99b1989cb"
+  },
+  {
+    "path": "components/HQScaler.h",
+    "sha256": "b63e856b55db7a6853f444a6d4d32cfe006d9e0fb1d9be1b3079557534738591"
+  },
+  {
+    "path": "components/MediaSource.h",
+    "sha256": "c4e168d29e3f7d9318435958c3c784ad4c497159a617bd7a5598a2951b1b15f6"
+  },
+  {
+    "path": "components/PreAnalysis.h",
+    "sha256": "6824fd31dc6a42ad4e1cce29bd2bf190e769d6d5a4427fba57cefa697c9a9bd7"
+  },
+  {
+    "path": "components/PreProcessing.h",
+    "sha256": "5a01d71e128cf8bcaa4945fe76d9aad0156c409df3b25616a75645ef15972dc3"
+  },
+  {
+    "path": "components/SupportedCodecs.h",
+    "sha256": "550900e56c8254bf9c42d1b1d6538a390f7f7d3bf4826ee385b019585cb6cd22"
+  },
+  {
+    "path": "components/VideoCapture.h",
+    "sha256": "08f0162a631833f847d1b4b751e41e28b147a79ed19545b43631222d22e74507"
+  },
+  {
+    "path": "components/VideoConverter.h",
+    "sha256": "465a8d620f61aa2ada6b3034fa2e67e9651dec3e6b402411e09c146ad2bac619"
+  },
+  {
+    "path": "components/VideoDecoderUVD.h",
+    "sha256": "588622f7d945c85c1ed334b497174fd46031e01664338bcf59c4b242920df886"
+  },
+  {
+    "path": "components/VideoEncoderAV1.h",
+    "sha256": "2c4e18f6d0be4701d9a9d9ad4298ed5d7ed7c1fd7a909995c4e745874d8203a0"
+  },
+  {
+    "path": "components/VideoEncoderHEVC.h",
+    "sha256": "138ad005e4b7131582fc1f82dad8851c1362f0d156bf62f10a64e462c8a037c0"
+  },
+  {
+    "path": "components/VideoEncoderVCE.h",
+    "sha256": "8dcddd6df00debd096db29f00fa155e3e179ebc6ea4c6c1edc5027eb857cffd5"
+  },
+  {
+    "path": "components/VideoStitch.h",
+    "sha256": "9bc2d8477d67693b0cd4d433fbc6a5812277190f67be5f188f0206b463f256ec"
+  },
+  {
+    "path": "components/VQEnhancer.h",
+    "sha256": "146e7cd35acc846f6b75b696bbe13a5d790f885bc23d9913e7de66f515da789b"
+  },
+  {
+    "path": "components/ZCamLiveStream.h",
+    "sha256": "3c6e6515a8fec111eb1847e349124a8c66c1e78be2d148bc0b8f85b9d9994e2d"
+  },
+  {
+    "path": "core/AudioBuffer.h",
+    "sha256": "c9382c911fd3b5e12105c1d2a67eb11e62e9475068825222a285bb1314ac0ddd"
+  },
+  {
+    "path": "core/Buffer.h",
+    "sha256": "1ad18d3c813c3f81a836d393bbe86dfc0b7a1d7f04a77a272eb1461ce85ae3a4"
+  },
+  {
+    "path": "core/Compute.h",
+    "sha256": "dc35befae2cecf5d2b866632a8b16c2f2ec3a543a6b474f941a33fcd7a8d1e0a"
+  },
+  {
+    "path": "core/ComputeFactory.h",
+    "sha256": "50acf69fb670bc6cf093384d1b698bf9e44cda8dd49e02ef24eacfb86ad8ccae"
+  },
+  {
+    "path": "core/Context.h",
+    "sha256": "f9b4acb784038aad234ddec490e5f6ad6dacc4b14794eb84f3523d56dc3d6dd2"
+  },
+  {
+    "path": "core/CurrentTime.h",
+    "sha256": "76d16ba57d48ae9e457f3d904698a1e7c625007ac8887db9bcecdb90fd36d835"
+  },
+  {
+    "path": "core/D3D12AMF.h",
+    "sha256": "f05771305598b534e1efa0dd28825267ea87418c477b198e373f6764d060c666"
+  },
+  {
+    "path": "core/Data.h",
+    "sha256": "eaac4d80dd3215638c70f8a4ca01791d26d9df77586f665a772bb51907a8035b"
+  },
+  {
+    "path": "core/Debug.h",
+    "sha256": "56666589bf6ad20c6286a048da751c2d7722f70c73d962ee3c205a6d709b6aff"
+  },
+  {
+    "path": "core/Dump.h",
+    "sha256": "a5e0fa9290cae767a4d135962ee5e30302e65e8d0ca5e016c620e72b759c86c6"
+  },
+  {
+    "path": "core/Factory.h",
+    "sha256": "644814e97dd359f08d66a73748b60262149b106d28423c31b573cecb4be57979"
+  },
+  {
+    "path": "core/Interface.h",
+    "sha256": "304f6d6077e9b0733859d44a5e43a343ae374c8fe72c7d79741c0aca89c21162"
+  },
+  {
+    "path": "core/Plane.h",
+    "sha256": "5ad5165e9de2afcfc2da828e8704c838b1f82e8ead7422fbcfc32c758672e1f3"
+  },
+  {
+    "path": "core/Platform.h",
+    "sha256": "13fae6d4e23720ede67a5002930b4337f60b4fb7639a3c5338a46d7df9e12fff"
+  },
+  {
+    "path": "core/PropertyStorage.h",
+    "sha256": "0059b787e78cd7c4e57212ccaab56ad7e17e9474a31337da0eac5b2d056a5dd8"
+  },
+  {
+    "path": "core/PropertyStorageEx.h",
+    "sha256": "871136e46586baa1fc77121935b503aaa16523d006c3e435ce50698605675fad"
+  },
+  {
+    "path": "core/Result.h",
+    "sha256": "a469ff33875484b5762199da757819056ff4a7535bfdcec1f4cf2ffc403b98f2"
+  },
+  {
+    "path": "core/Surface.h",
+    "sha256": "d3f8c41bf2d44e935ca5e77865127670fc9a9476c21c62b5bcaa1eaf0918931b"
+  },
+  {
+    "path": "core/Trace.h",
+    "sha256": "ae8c5fee671f02b90d3ccab312cfa6f74424351f070a7dd4ed7aba437fd55c30"
+  },
+  {
+    "path": "core/Variant.h",
+    "sha256": "ac63c94d0f3624b4ddaa4164d4eb82d0c7f54723cee9cf035d23e02edd92e333"
+  },
+  {
+    "path": "core/Version.h",
+    "sha256": "1edad0a2f23976be06a0566d858990239619f366f6dffbbd26e98bd5308c01f2"
+  },
+  {
+    "path": "core/VulkanAMF.h",
+    "sha256": "a7cd8455fb5dd1b7a09bb4a770235d4cde7cf9549a0c6604dc5300e0c5e6ba4e"
+  }
+]

@@ -1,0 +1,20 @@
+{
+  "purpose": "Reviewed, unmodified Chromium cursors for moving and rotating drawings. check:contracts rejects unlisted, missing or edited files; drawing tools use Windows cursors instead.",
+  "package": "chromium/src ui/resources/cursors",
+  "license": "BSD-3-Clause",
+  "source": "https://chromium.googlesource.com/chromium/src/+/main/ui/resources/cursors/",
+  "reviewed": "2026-11-07",
+  "conventions": {
+    "Drawing tools": "Windows crosshair (IDC_CROSS).",
+    "Moving or rotating a drawing": "hand_grab.cur on hover, hand_grabbing.cur while dragging.",
+    "Text, resize and toolbar": "Windows I-beam, resize arrows and arrow."
+  },
+  "gitBlob": {
+    "hand_grab.cur": "4cdf4288af1089c9e7ec114ed430ca0de9c835be",
+    "hand_grabbing.cur": "0d95775648cfaebd8fe50c0440cdd08c9c161505"
+  },
+  "sha1": {
+    "hand_grab.cur": "b72b9901b3fe6fc8693d67cc5e419e494afddbb8",
+    "hand_grabbing.cur": "1b8137afa3dd66c23af9e40e75339d2f0174aff2"
+  }
+}

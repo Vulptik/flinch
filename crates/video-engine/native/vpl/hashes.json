@@ -1,0 +1,218 @@
+[
+  {
+    "path": "dispatcher/src/mfx_config_interface/mfx_config_interface.cpp",
+    "sha256": "86733e7fd2c40d690686035815860eb78278944f67919fa27ae97c311a719ece"
+  },
+  {
+    "path": "dispatcher/src/mfx_config_interface/mfx_config_interface.h",
+    "sha256": "f831e10cd6750960956a6e58fbfff674b6b621a67d28edba9c68167b92a006ac"
+  },
+  {
+    "path": "dispatcher/src/mfx_config_interface/mfx_config_interface_string_api.cpp",
+    "sha256": "67af11fa62fa507504c2d83fca7be9ce75cec11dda25068737573346d3586b81"
+  },
+  {
+    "path": "dispatcher/src/mfx_dispatcher_vpl.cpp",
+    "sha256": "0d055eb3b4eb03bfb5e26c25f1ff9fddf17b7cf16f0c14ecdfc8290458ef1193"
+  },
+  {
+    "path": "dispatcher/src/mfx_dispatcher_vpl.h",
+    "sha256": "776ccbd8d065a75bc7293bbd9882d93ddd5331a8c7ea5546c0c049f130145efe"
+  },
+  {
+    "path": "dispatcher/src/mfx_dispatcher_vpl_config.cpp",
+    "sha256": "e0f3470bf74d33c1bba4943d14b1c7aa7f3a547752ee45557015353871a4b013"
+  },
+  {
+    "path": "dispatcher/src/mfx_dispatcher_vpl_loader.cpp",
+    "sha256": "1a8d94cdff440dc947596b0f1eed792acf12b691790096e6ee8e5995b5b10549"
+  },
+  {
+    "path": "dispatcher/src/mfx_dispatcher_vpl_log.cpp",
+    "sha256": "85b73a65535282da4990fdc859e4d7167ee8da110b23bce6d7d031248226c8d9"
+  },
+  {
+    "path": "dispatcher/src/mfx_dispatcher_vpl_log.h",
+    "sha256": "0e1b21137a12efaaa50167cbe6c0788e9157c9ab1c95c4ff0f5135484f8c7b7f"
+  },
+  {
+    "path": "dispatcher/src/mfx_dispatcher_vpl_lowlatency.cpp",
+    "sha256": "003434a5d239f330ed9a071103af576923ae664fb098086e999df93cd37c9561"
+  },
+  {
+    "path": "dispatcher/src/mfx_dispatcher_vpl_msdk.cpp",
+    "sha256": "488257ae46b25e7e3113fce43b5dc03aa7b5079b28c49d194b89a41835db88af"
+  },
+  {
+    "path": "dispatcher/src/mfx_dispatcher_vpl_win.h",
+    "sha256": "57e3536cc5bb127b8ee0a305e6626e2233602b9a92a34284c8bae8380cfed17b"
+  },
+  {
+    "path": "dispatcher/src/windows/main.cpp",
+    "sha256": "4a1a5b76de3cd37d38a07ae686e9e3faccb1656e1da6554be798de28c7e48737"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_critical_section.cpp",
+    "sha256": "8f67ca4f246c763b3b2ece129b1faee4292c0b816ae5a170fce4a7d7c5995a16"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_critical_section.h",
+    "sha256": "5d678f692e4f2bd536b21fc9c0b7cf4b3b6c0d2259d90bb8684b107571383080"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_dispatcher.cpp",
+    "sha256": "1644a282fd6bb5dba3e08ed285cc9a9cab9b20b884981ad66039d58836aa644a"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_dispatcher.h",
+    "sha256": "32e8a8ffab5a2ac0ff640f2bb98834254ec1004ab8873e4c2cb7890a9e93ea60"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_dispatcher_defs.h",
+    "sha256": "bb1913bed7c1d6ab7cd3fcc12e3d53fa679d6ffca7425186da5c742b1d82e433"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_dispatcher_log.cpp",
+    "sha256": "ce92fc00bfd97276e98f5133fb9d6d6ec144bc1a85bb77861e4dd130ff78ba02"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_dispatcher_log.h",
+    "sha256": "1f3dc7beaf1be006431a96a3c0b1037637e63e1bd6aa016f1a1d1c20e3fe69ef"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_driver_store_loader.cpp",
+    "sha256": "394929b0dbabe9ac748e8ece4446c680d946bdc6c648fa7f8397ed0229d800e6"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_driver_store_loader.h",
+    "sha256": "fd7fd672b9b4e813417080f5a4243e538a165236e67df3b7ebf6e6ebf626c3ad"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_dxva2_device.cpp",
+    "sha256": "509b833eb31760e09b161ae9a892067ffae1a265359cf4259edd34936b6454d2"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_dxva2_device.h",
+    "sha256": "0259e2fd26e6353401dcf81ae705fd642390c6a8065fa42cec7648f9d3ef263c"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_exposed_functions_list.h",
+    "sha256": "ac321de3587d9386f42bfafd1bacfb74c3b2888c74b5a1df868deadf974daa24"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_function_table.cpp",
+    "sha256": "a4fabc96538544fe0613b4a9cb9e35c81d73b50d46acf89945fcf58092f2ea54"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_library_iterator.cpp",
+    "sha256": "e0b978fea32889e9615fe6126cef5423879e0914096aeec223cdbcb3deac4558"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_library_iterator.h",
+    "sha256": "aa9b0e5a8f82f7a46aaaafc619a5dad6a5489a720ce224cf10ce4a66917720f8"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_load_dll.cpp",
+    "sha256": "bbc1596025a6c5645f6d8ffebd8a91bc7a96831a0066fa09041bc3976a4bf86a"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_load_dll.h",
+    "sha256": "51853d245c465a4417936e1d7638a5c4225836dd54d9d20079d9d2a5792774e8"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_vector.h",
+    "sha256": "209d3b92321e90fbf6cbde228d28a106a2ea48f61e55e81c5f6338626210f301"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_win_reg_key.cpp",
+    "sha256": "9ad4e11edb07c921cc693c682adfee5ccc30cc685a00a08b7ec793858ab7b5d7"
+  },
+  {
+    "path": "dispatcher/src/windows/mfx_win_reg_key.h",
+    "sha256": "35c057bbe0f660867b61d9c73e34e3865d7066203e2a7bb79d1f882f8b74e186"
+  },
+  {
+    "path": "dispatcher/src/windows/mfxvideo++.h",
+    "sha256": "6a65a4bf102df3db203be6e405a87788e5cf4600406ec0c4718873b00704dfdb"
+  },
+  {
+    "path": "vpl/mfx.h",
+    "sha256": "edd1b3e1133f835a137eb454cef952725e03abc00bb71226a942e4d43532e157"
+  },
+  {
+    "path": "vpl/mfxadapter.h",
+    "sha256": "1943b3a47cb9945eeb7703fef19738318a52544d6c5c174d8fafa81cfe803f02"
+  },
+  {
+    "path": "vpl/mfxbrc.h",
+    "sha256": "8548390294d8549f100a8e9b7e7a7631c78e8ede8087ec89b6f62a3854fcce71"
+  },
+  {
+    "path": "vpl/mfxcamera.h",
+    "sha256": "fc98ca2f285e53e8a03f453ec840f6bee48ec8489ecc93ca5159e20679c83fda"
+  },
+  {
+    "path": "vpl/mfxcommon.h",
+    "sha256": "c290e6ae15f35436097f0b605c02566fa67094cf449d090520d23c7e3fa194a8"
+  },
+  {
+    "path": "vpl/mfxdefs.h",
+    "sha256": "9cdfeca6651e3d994d068389e30c6235c6970e018be98d2bacc89202175775ff"
+  },
+  {
+    "path": "vpl/mfxdispatcher.h",
+    "sha256": "19072d08daa7fc094d690c387be162fe4a8a5a30316886ac333deeedec67a0d8"
+  },
+  {
+    "path": "vpl/mfxdispatcherprefixedfunctions.h",
+    "sha256": "9db68ec1e3b852984e22971488abc5b5aad01728565a92290c18bd30612093bf"
+  },
+  {
+    "path": "vpl/mfxencodestats.h",
+    "sha256": "d6f2e6af520e652814bcda801122271940e8670f99018729156b565985e8bda6"
+  },
+  {
+    "path": "vpl/mfximplcaps.h",
+    "sha256": "afcc8e46ffc67655b4374ef4d3bd4f4c91478dca2f7cba790e7a3cf6bea9d5a3"
+  },
+  {
+    "path": "vpl/mfxjpeg.h",
+    "sha256": "6bccee77bb4f50f8605689b86f9066a4c207393e93b80ac09ca5991cc02685df"
+  },
+  {
+    "path": "vpl/mfxmemory.h",
+    "sha256": "2d751e9f590d536f0c59452d1d7323fe2a801402a9bd8a7725c89fcf5dcd7cf1"
+  },
+  {
+    "path": "vpl/mfxmvc.h",
+    "sha256": "4e3b5a0ab44cf25d1ea903f86c574c80137f5adb6cfba17d37f73564f0ea452e"
+  },
+  {
+    "path": "vpl/mfxpcp.h",
+    "sha256": "c00ed6ee90018090de26b7515d6a2394606e8c56ef1d1accbfb56cbf4fd7f9c7"
+  },
+  {
+    "path": "vpl/mfxsession.h",
+    "sha256": "e141900442754d11806d199ee29ad065b7e7677044eb9b3f496cb10206c49926"
+  },
+  {
+    "path": "vpl/mfxstructures.h",
+    "sha256": "1a1fd6c0bc3a406cb41ffb1f079cad1304bdbd4c8ed43127a3f9d9be8308c305"
+  },
+  {
+    "path": "vpl/mfxsurfacepool.h",
+    "sha256": "e05f031d9c0b856c3d1947888560025983d30350c594b5530470ba5eefa14fa0"
+  },
+  {
+    "path": "vpl/mfxvideo++.h",
+    "sha256": "d7b9337e669d31a3d449f0eabf4317cebeaf225f786c6ab0c430ad0f1224eaf3"
+  },
+  {
+    "path": "vpl/mfxvideo.h",
+    "sha256": "571f6607e1ad16bfacd16733b2188acea40f4837b7df336a7bf85ade059d17d2"
+  },
+  {
+    "path": "vpl/mfxvp8.h",
+    "sha256": "7a1f260be6d0aa441bc87349fc74d1c30475c7504520ddf7f827eba0752262ce"
+  }
+]

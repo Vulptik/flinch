@@ -1,0 +1,24 @@
+# Weekly, grouped updates so pinned actions and crates don't go stale without flooding pull requests.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Slint is pinned exactly and patched under vendor/; update it by hand.
+      - dependency-name: "slint*"
+      - dependency-name: "i-slint-*"
+      # smallpeg is vendored and patched too.
+      - dependency-name: "smallpeg"

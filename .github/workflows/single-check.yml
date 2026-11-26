@@ -1,0 +1,37 @@
+name: Single check
+
+# Manual: rerun one gate on the CI runner in minutes instead of the full Build pipeline.
+on:
+  workflow_dispatch:
+    inputs:
+      check:
+        description: Gate to run
+        type: choice
+        options:
+          - test:recording
+          - test:video
+          - test:settings
+          - test:installer
+
+jobs:
+  # Same job id as Build's test job, so rust-cache restores that job's build.
+  test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Rust
+        # Installs the exact Rust, components and target named in rust-toolchain.toml.
+        run: rustup toolchain install
+
+      # Reads the Build test job's cache and never overwrites it.
+      - name: Cache Rust dependencies
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+          save-if: false
+
+      - name: Run ${{ inputs.check }}
+        run: cargo xtask ${{ inputs.check }}

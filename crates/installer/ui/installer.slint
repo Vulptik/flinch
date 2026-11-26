@@ -1,0 +1,366 @@
+import { LineEdit, Palette } from "std-widgets.slint";
+
+export global InstallerInteraction { in-out property <bool> keyboard-mode: false; }
+
+component LanguageChoice inherits Rectangle {
+    in property <[string]> model;
+    in-out property <int> current-index;
+    in property <bool> enabled: true;
+    callback selected(string);
+    private property <int> highlighted;
+    border-radius: 6px; border-width: 1px; border-color: #ffffff20;
+    background: hit.has-hover || (keys.has-focus && InstallerInteraction.keyboard-mode) ? #ffffff12 : #ffffff07;
+    accessible-role: combobox;
+    accessible-value: root.model.length > 0 ? root.model[root.current-index] : "";
+    accessible-enabled: root.enabled;
+    accessible-action-default => { root.open(); }
+    forward-focus: keys;
+    function open() { if root.enabled { root.highlighted = root.current-index; popup.show(); } }
+    function choose(index: int) {
+      if root.enabled && index >= 0 && index < root.model.length {
+        root.current-index = index;
+        root.selected(root.model[index]);
+        popup.close();
+        keys.focus();
+      }
+    }
+    keys := FocusScope {
+      enabled: root.enabled;
+      key-pressed(event) => {
+        InstallerInteraction.keyboard-mode = true;
+        if event.text == Key.Return || event.text == " " || event.text == Key.DownArrow { root.open(); return accept; }
+        return reject;
+      }
+    }
+    Text { x: 12px; width: parent.width - 40px; height: parent.height; text: root.model.length > 0 ? root.model[root.current-index] : ""; color: #f1f1f2; vertical-alignment: center; overflow: elide; }
+    Image { x: parent.width - 25px; y: (parent.height - 14px) / 2; width: 14px; height: 14px; source: @image-url("../../settings/ui/assets/chevron-down.svg"); colorize: #888892; }
+    hit := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { InstallerInteraction.keyboard-mode = false; keys.focus(); root.open(); } }
+    popup := PopupWindow {
+      x: 0px; y: root.height + 4px; width: root.width; height: root.model.length * 32px + 8px;
+      close-policy: close-on-click-outside;
+      forward-focus: popup-keys;
+      Rectangle { background: #1b1b1e; border-radius: 6px; border-width: 1px; border-color: #ffffff20; }
+      popup-keys := FocusScope {
+        key-pressed(event) => {
+          InstallerInteraction.keyboard-mode = true;
+          if event.text == Key.DownArrow { root.highlighted = min(root.highlighted + 1, root.model.length - 1); return accept; }
+          if event.text == Key.UpArrow { root.highlighted = max(root.highlighted - 1, 0); return accept; }
+          if event.text == Key.Home { root.highlighted = 0; return accept; }
+          if event.text == Key.End { root.highlighted = root.model.length - 1; return accept; }
+          if event.text == Key.Return { root.choose(root.highlighted); return accept; }
+          if event.text == Key.Escape || event.text == Key.Tab { popup.close(); keys.focus(); return event.text == Key.Tab ? reject : accept; }
+          return reject;
+        }
+      }
+      VerticalLayout { padding: 4px; spacing: 0px;
+        for value[index] in root.model: Rectangle {
+          height: 32px; border-radius: 4px;
+          background: row-hit.has-hover || (InstallerInteraction.keyboard-mode && index == root.highlighted) ? #ffffff10 : transparent;
+          Text { x: 8px; width: parent.width - 16px; height: parent.height; text: value; color: #f1f1f2; vertical-alignment: center; }
+          row-hit := TouchArea { mouse-cursor: pointer; clicked => { InstallerInteraction.keyboard-mode = false; root.choose(index); } }
+        }
+      }
+    }
+}
+
+component ShortcutChoice inherits Rectangle {
+    in property <string> text;
+    in-out property <bool> checked;
+    in property <bool> enabled: true;
+    height: 26px; min-width: caption.preferred-width + 32px;
+    accessible-role: checkbox; accessible-label: text; accessible-checkable: true; accessible-checked: checked; accessible-enabled: enabled;
+    accessible-action-default => { if root.enabled { root.checked = !root.checked; } }
+    forward-focus: keys;
+    keys := FocusScope { enabled: root.enabled; key-pressed(event) => { InstallerInteraction.keyboard-mode = true; if event.text == " " || event.text == "\n" { root.checked = !root.checked; return accept; } return reject; } }
+    Rectangle { x: 0px; y: 4px; width: 18px; height: 18px; border-radius: 4px; border-width: 1px; border-color: root.checked ? #e5484d : #888892; background: root.checked ? #d92f35 : hit.has-hover ? #ffffff12 : transparent;
+      if root.checked: Image { x: 2px; y: 2px; width: 14px; height: 14px; source: @image-url("../../settings/ui/assets/check.svg"); colorize: #ffffff; }
+    }
+    caption := Text { x: 28px; height: parent.height; text: root.text; color: #f1f1f2; vertical-alignment: center; }
+    hit := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { InstallerInteraction.keyboard-mode = false; keys.focus(); root.checked = !root.checked; } }
+    Rectangle { border-radius: 4px; border-width: 0px; background: keys.has-focus && InstallerInteraction.keyboard-mode ? #ffffff0a : transparent; }
+}
+
+component ScopeChoice inherits Rectangle {
+    in property <string> label;
+    in property <string> description;
+    in property <bool> checked;
+    in property <bool> enabled: true;
+    callback selected();
+    height: 58px;
+    border-radius: 8px; border-width: root.checked ? 2px : 1px;
+    border-color: root.checked ? #ff3038 : #ffffff12;
+    background: hit.has-hover ? #ffffff08 : #ffffff02;
+    accessible-role: radio-button; accessible-label: label; accessible-checkable: true; accessible-checked: checked; accessible-enabled: enabled;
+    accessible-action-default => { if root.enabled { root.selected(); } }
+    forward-focus: keys;
+    keys := FocusScope { enabled: root.enabled; key-pressed(event) => { InstallerInteraction.keyboard-mode = true; if event.text == " " || event.text == "\n" { root.selected(); return accept; } return reject; } }
+    Rectangle { x: 14px; y: (parent.height - self.height) / 2; width: 16px; height: 16px; border-radius: 8px; border-width: 1.5px; border-color: root.checked ? #ff6060 : #888892; background: transparent;
+      if root.checked: Rectangle { x: 4px; y: 4px; width: 8px; height: 8px; border-radius: 4px; background: #ff6060; }
+    }
+    Text { x: 42px; y: 9px; width: parent.width - 60px; height: 24px; text: root.label; color: #f1f1f2; font-weight: 500; vertical-alignment: center; }
+    Text { x: 42px; y: 33px; width: parent.width - 60px; height: 18px; text: root.description; color: #a1a1ab; font-size: 12px; }
+    hit := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => {InstallerInteraction.keyboard-mode = false; keys.focus();root.selected();} }
+    Rectangle { border-radius: 6px; border-width: 0px; background: keys.has-focus && InstallerInteraction.keyboard-mode ? #ffffff0a : transparent; }
+}
+
+component WindowControl inherits Rectangle {
+    in property <string> label;
+    in property <bool> closing;
+    callback activated();
+    width: 32px; height: 32px;
+    background: hit.has-hover ? (closing ? #d92f2f : #ffffff14) : transparent;
+    accessible-role: button;
+    accessible-label: label;
+    forward-focus: keys;
+    keys := FocusScope {
+        key-pressed(event) => { InstallerInteraction.keyboard-mode = true;
+            if event.text == "\n" || event.text == " " { root.activated(); return accept; }
+            return reject;
+        }
+    }
+    Image {
+        x: 9px; y: 9px; width: 14px; height: 14px;
+        source: root.closing ? @image-url("../../settings/ui/assets/x.svg") : @image-url("../../settings/ui/assets/minus.svg");
+        colorize: root.closing && hit.has-hover ? #ffffff : #ffffff66;
+    }
+    hit := TouchArea { mouse-cursor: pointer; clicked => { InstallerInteraction.keyboard-mode = false; keys.focus(); root.activated(); } }
+    Rectangle { border-width: 0px; background: keys.has-focus && InstallerInteraction.keyboard-mode ? #ffffff0a : transparent; }
+}
+
+component ActionButton inherits Rectangle {
+    in property <string> label;
+    in property <bool> primary;
+    in property <bool> enabled: true;
+    callback activated();
+    height: 38px;
+    min-width: 112px;
+    border-radius: 8px;
+    border-width: primary ? 0px : 1px;
+    border-color: #ffffff20;
+    background: !enabled ? #ffffff06 : primary ? (hit.pressed ? #b52528 : hit.has-hover ? #eb484d : #d92f35) : hit.has-hover ? #ffffff12 : #ffffff07;
+    accessible-role: button;
+    accessible-label: label;
+    forward-focus: keys;
+    keys := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => { InstallerInteraction.keyboard-mode = true;
+            if event.text == "\n" || event.text == " " { root.activated(); return accept; }
+            return reject;
+        }
+    }
+    Text { text: root.label; color: !root.enabled ? #666670 : #f1f1f2; font-size: 14px; font-weight: 600; horizontal-alignment: center; vertical-alignment: center; }
+    hit := TouchArea { enabled: root.enabled; mouse-cursor: pointer; clicked => { InstallerInteraction.keyboard-mode = false; keys.focus(); root.activated(); } }
+    Rectangle { border-radius: 8px; border-width: 0px; background: keys.has-focus && InstallerInteraction.keyboard-mode ? #ffffff12 : transparent; }
+}
+
+export component InstallerWindow inherits Window {
+    init => { Palette.color-scheme = ColorScheme.dark; }
+    in property <string> window-title;
+    in property <string> minimize-label;
+    in property <string> window-close-label;
+    in-out property <bool> placement-ready;
+    title: window-title;
+    preferred-width: 640px;
+    preferred-height: 420px;
+    min-width: 640px; max-width: 640px;
+    min-height: 420px; max-height: 420px;
+    no-frame: true; resize-border-width: 0px;
+    icon: @image-url("../../settings/ui/assets/logo.svg");
+    background: #111113;
+    default-font-family: "Segoe UI Variable Text";
+    default-font-size: 14px;
+    in property <string> version;
+    in property <[string]> language-names;
+    in property <string> language-label;
+    in-out property <int> language-index;
+    callback language-selected(int);
+    out property <length> language-x: language-choice.absolute-position.x + language-choice.width / 2;
+    out property <length> language-y: language-choice.absolute-position.y + language-choice.height / 2;
+    in property <string> heading;
+    in property <string> detail;
+    in property <string> stage;
+    in property <string> primary-label;
+    in property <string> finish-label;
+    in property <string> retry-label;
+    in property <string> repair-label;
+    in property <string> remove-label;
+    in property <string> close-label;
+    in property <string> preservation;
+    in property <bool> show-preservation;
+    in property <bool> optional-error;
+    out property <bool> keyboard-navigation: InstallerInteraction.keyboard-mode;
+    in property <string> error-detail;
+    in property <bool> busy;
+    in property <bool> maintenance;
+    in property <bool> finished;
+    in property <bool> failed;
+    in property <int> progress;
+    in property <int> primary-operation: 6;
+    callback action(int);
+    callback start-intro();
+    // 1: owner, 0: existing setup activated, -1: activation failed.
+    callback acquire-instance() -> int;
+    in property <bool> intro-complete: true;
+    in property <float> intro-opacity: 1;
+    in property <float> intro-content-y;
+    in property <float> logo-x: 32;
+    in property <float> logo-y: 32;
+    in property <float> logo-size: 36;
+    in property <image> intro-image: @image-url("../../settings/ui/assets/logo.svg");
+    in property <bool> logo-padded;
+    in property <bool> show-options;
+    in property <int> wizard-page: -1;
+    in property <string> user-description;
+    in property <string> machine-description;
+    in property <bool> scope-locked;
+    in-out property <int> install-scope;
+    in-out property <string> install-directory;
+    in-out property <bool> start-menu;
+    in-out property <bool> desktop-shortcut;
+    in property <string> just-me-label;
+    in property <string> everyone-label;
+    in property <string> folder-label;
+    in property <string> browse-label;
+    in property <string> start-menu-label;
+    in property <string> desktop-label;
+    in property <string> launch-label;
+    in-out property <bool> launch-app: true;
+    in property <bool> launch-enabled: true;
+    in property <string> elevation-label;
+    in-out property <string> options-error;
+    callback scope-changed();
+    callback browse-folder();
+    out property <length> everyone-x: everyone-choice.absolute-position.x + everyone-choice.width / 2;
+    out property <length> choice-y: everyone-choice.absolute-position.y + everyone-choice.height / 2;
+    out property <length> just-me-x: user-choice.absolute-position.x + user-choice.width / 2;
+    out property <length> user-y: user-choice.absolute-position.y + user-choice.height / 2;
+    out property <length> desktop-y: desktop-choice.absolute-position.y + desktop-choice.height / 2;
+    out property <length> menu-x: menu-choice.absolute-position.x + menu-choice.width / 2;
+    out property <length> desktop-x: desktop-choice.absolute-position.x + desktop-choice.width / 2;
+    out property <length> shortcut-y: menu-choice.absolute-position.y + menu-choice.height / 2;
+    out property <length> launch-x: launch-choice.absolute-position.x + launch-choice.width / 2;
+    out property <length> launch-y: launch-choice.absolute-position.y + launch-choice.height / 2;
+    out property <length> browse-x: browse-choice.absolute-position.x + browse-choice.width / 2;
+    out property <length> browse-y: browse-choice.absolute-position.y + browse-choice.height / 2;
+    changed install-scope => { root.scope-changed(); }
+
+    forward-focus: navigation;
+    navigation := FocusScope {
+      width: parent.width; height: parent.height;
+      capture-key-pressed(event) => {
+        if event.text == Key.Tab { InstallerInteraction.keyboard-mode = true; }
+        return reject;
+      }
+    WindowMoveArea { x: 0px; y: 0px; width: parent.width - 64px; height: 32px; }
+    VerticalLayout {
+        opacity: root.intro-opacity;
+        y: root.intro-content-y * 1px;
+        padding: 32px;
+        spacing: 24px;
+        HorizontalLayout {
+          WindowMoveArea {
+          HorizontalLayout {
+            spacing: 12px;
+            Rectangle { width: 36px; height: 36px; background: transparent; }
+            VerticalLayout {
+                spacing: 1px;
+                Text { text: "Flinch"; color: #f1f1f2; font-size: 22px; font-weight: 600; }
+                Text { text: root.version; color: #888892; font-size: 12px; }
+            }
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+          }
+          }
+          Rectangle {
+            width: 140px; height: 48px; background: transparent;
+          language-choice := LanguageChoice {
+            y: 12px;
+            width: 140px; height: 32px;
+            model: root.language-names;
+            current-index <=> root.language-index;
+            accessible-label: root.language-label;
+            enabled: root.intro-complete;
+            selected(value) => { root.language-selected(self.current-index); }
+          }
+          }
+        }
+        Rectangle { height: 1px; background: #ffffff12; }
+        VerticalLayout {
+            spacing: root.show-options ? 8px : 12px;
+            Text { text: root.heading; color: #f1f1f2; font-size: 25px; font-weight: 600; wrap: word-wrap; }
+            if root.wizard-page != 0 && root.detail != "": Text { text: root.detail; color: #a1a1ab; wrap: word-wrap; }
+            Rectangle {
+              visible: root.wizard-page >= 0;
+              height: root.wizard-page == 0 ? 124px : root.wizard-page == 1 ? 100px : root.wizard-page == 2 ? 100px : 0px;
+            Rectangle {
+              visible: root.wizard-page == 0; width: parent.width; height: parent.height; clip: true;
+              VerticalLayout {
+                spacing: 8px;
+                user-choice := ScopeChoice { label: root.just-me-label; description: root.user-description; checked: root.install-scope == 0; enabled: root.intro-complete && !root.scope-locked; selected => {root.install-scope = 0;} }
+                everyone-choice := ScopeChoice { label: root.everyone-label; description: root.machine-description; checked: root.install-scope == 1; enabled: root.intro-complete && !root.scope-locked; selected => {root.install-scope = 1;} }
+              }
+            }
+            Rectangle {
+              visible: root.wizard-page == 1; width: parent.width; height: parent.height; clip: true;
+              VerticalLayout { spacing: 12px;
+                Text { text: root.folder-label; color: #a1a1ab; font-size: 12px; }
+                HorizontalLayout {
+                    spacing: 10px; height: 34px;
+                    LineEdit { text <=> root.install-directory; enabled: root.intro-complete; accessible-label: root.folder-label; }
+                    browse-choice := ActionButton { label: root.browse-label; height: 34px; enabled: root.intro-complete; activated => { root.browse-folder(); } }
+                }
+                Text { text: root.options-error != "" ? root.options-error : root.elevation-label; color: root.options-error != "" ? #ff9699 : #888892; font-size: 12px; wrap: word-wrap; }
+              }
+            }
+            Rectangle {
+              visible: root.wizard-page == 2; width: parent.width; height: parent.height; clip: true;
+                VerticalLayout {
+                    spacing: 12px;
+                    menu-choice := ShortcutChoice { text: root.start-menu-label; checked <=> root.start-menu; enabled: root.intro-complete; }
+                    desktop-choice := ShortcutChoice { text: root.desktop-label; checked <=> root.desktop-shortcut; enabled: root.intro-complete; }
+                    launch-choice := ShortcutChoice { text: root.launch-label; checked <=> root.launch-app; enabled: root.intro-complete && root.launch-enabled; }
+                }
+            }
+            }
+            if root.busy: VerticalLayout {
+                spacing: 10px;
+                padding-top: 8px;
+                if root.stage != "": Text { text: root.stage; color: #c8c8d0; font-size: 13px; }
+                Rectangle {
+                    height: 5px; border-radius: 2.5px; background: #ffffff12;
+                    Rectangle { x: 0px; y: 0px; width: parent.width * root.progress / 100; height: parent.height; border-radius: 2.5px; background: #e5484d; }
+                }
+            }
+            if root.failed: Rectangle {
+                height: 64px; background: #e5484d12; border-radius: 8px;
+                Text { x: 12px; y: 10px; width: parent.width - 24px; height: parent.height - 20px; text: root.error-detail; color: #ff9699; wrap: word-wrap; font-size: 12px; }
+            }
+            Rectangle { vertical-stretch: 1; background: transparent; }
+        }
+        if root.show-preservation: Text { text: root.preservation; color: #888892; font-size: 12px; wrap: word-wrap; }
+        HorizontalLayout {
+            spacing: 10px;
+            if root.maintenance && !root.busy && !root.finished && !root.failed: ActionButton { enabled: root.intro-complete; label: root.remove-label; activated => { root.action(4); } }
+            Rectangle { horizontal-stretch: 1; background: transparent; }
+            if root.wizard-page != 2: ActionButton { enabled: root.intro-complete; label: root.close-label; activated => { root.action(root.busy ? 9 : 0); } }
+            if (!root.finished && !root.failed && !root.busy) || root.wizard-page == 2: ActionButton {
+                label: root.wizard-page == 2 ? (root.optional-error && (root.start-menu || root.desktop-shortcut) ? root.retry-label : root.finish-label) : root.maintenance ? root.repair-label : root.primary-label;
+                primary: true;
+                enabled: root.intro-complete && !root.busy;
+                activated => { root.action(root.primary-operation); }
+            }
+        }
+    }
+    Image {
+        x: (root.logo-x - (root.logo-padded ? root.logo-size * 0.5 : 0)) * 1px;
+        y: (root.logo-y - (root.logo-padded ? root.logo-size * 0.625 : 0)) * 1px;
+        width: root.logo-size * (root.logo-padded ? 2 : 1) * 1px;
+        height: root.logo-size * (root.logo-padded ? 2.25 : 1) * 1px;
+        source: root.intro-image; image-fit: contain;
+    }
+    HorizontalLayout {
+        x: parent.width - 64px; y: 0px; width: 64px; height: 32px; spacing: 0px;
+        WindowControl { label: root.minimize-label; activated => { root.minimized = true; } }
+        WindowControl { label: root.window-close-label; closing: true; activated => { root.action(root.busy ? 9 : 10); } }
+    }
+    }
+}

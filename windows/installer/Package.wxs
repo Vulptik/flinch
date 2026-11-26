@@ -1,0 +1,51 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package Name="Flinch" Manufacturer="Flinch" Version="$(var.Version)" ProductCode="$(var.ProductCode)" UpgradeCode="886DC46E-70D6-4F71-B8D6-CC073021787A" Scope="perUserOrMachine" InstallerVersion="500" Compressed="yes">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Flinch is installed." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+    <Property Id="MSIRESTARTMANAGERCONTROL" Value="0" />
+    <Property Id="MSIRMSHUTDOWN" Value="1" />
+    <Property Id="MSIDISABLERMRESTART" Value="1" />
+    <Property Id="REBOOT" Value="ReallySuppress" />
+    <Property Id="REINSTALLMODE" Value="amus" />
+    <Property Id="STARTMENU" Value="0" Secure="yes" />
+    <Property Id="DESKTOPSHORTCUT" Value="0" Secure="yes" />
+    <Property Id="INSTALLFOLDER" Secure="yes" />
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]" After="CostFinalize" Sequence="execute" />
+    <Icon Id="FlinchIcon" SourceFile="$(var.Icon)" />
+    <Property Id="ARPPRODUCTICON" Value="FlinchIcon" />
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="Flinch">
+        <Directory Id="RESOURCES" Name="resources" />
+        <Directory Id="LICENSES" Name="licenses" />
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="APP_MENU" Name="Flinch">
+        <Component Id="MenuShortcut" Guid="*">
+          <Shortcut Id="MenuLaunch" Name="Flinch" Target="[INSTALLFOLDER]flinch.exe" WorkingDirectory="INSTALLFOLDER" Icon="FlinchIcon" />
+          <RemoveFolder Id="RemoveMenu" On="uninstall" />
+          <RegistryValue Root="HKMU" Key="Software\FlinchInstaller" Name="MenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+    <StandardDirectory Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="*">
+        <Shortcut Id="DesktopLaunch" Name="Flinch" Target="[INSTALLFOLDER]flinch.exe" WorkingDirectory="INSTALLFOLDER" Icon="FlinchIcon" />
+        <RegistryValue Root="HKMU" Key="Software\FlinchInstaller" Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </StandardDirectory>
+    <DirectoryRef Id="INSTALLFOLDER">
+      <Component Id="InstallSettings" Guid="*">
+        <RegistryValue Root="HKMU" Key="Software\FlinchInstaller" Name="InstallDir" Type="string" Value="[INSTALLFOLDER]" KeyPath="yes" />
+        <RegistryValue Root="HKMU" Key="Software\FlinchInstaller" Name="StartMenu" Type="integer" Value="[STARTMENU]" />
+        <RegistryValue Root="HKMU" Key="Software\FlinchInstaller" Name="Desktop" Type="integer" Value="[DESKTOPSHORTCUT]" />
+      </Component>
+    </DirectoryRef>
+    <Feature Id="Application" Level="1">
+      <ComponentGroupRef Id="Payload" />
+      <ComponentRef Id="InstallSettings" />
+    </Feature>
+    <Feature Id="StartMenuFeature" Level="1"><ComponentRef Id="MenuShortcut" /></Feature>
+    <Feature Id="DesktopFeature" Level="1"><ComponentRef Id="DesktopShortcut" /></Feature>
+  </Package>
+</Wix>

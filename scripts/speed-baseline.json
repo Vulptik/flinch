@@ -1,0 +1,15 @@
+{
+  "first_overlay_ceiling_ms": 60.0,
+  "freeze_ceiling_ms": 5.0,
+  "freeze_median_ms": 1.48,
+  "freeze_slack_ms": 1.0,
+  "measured": "speed:ratchet, release probe build, 2560x1440, 20 presses, unix time 1795022765",
+  "overlay_ceiling_ms": 40.0,
+  "overlay_median_ms": 28.3,
+  "overlay_slack_ms": 3.0,
+  "picker_freeze_median_ms": 1.54,
+  "picker_overlay_median_ms": 26.77,
+  "presses": 20,
+  "rebaseline_reason": null,
+  "tolerance_percent": 20.0
+}

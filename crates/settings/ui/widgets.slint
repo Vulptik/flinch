@@ -1,0 +1,557 @@
+import { Switch } from "std-widgets.slint";
+import { Copy } from "copy.slint";
+
+export global Typography {
+    in-out property <string> text-family: "Segoe UI";
+    in-out property <string> small-family: "Segoe UI";
+    in-out property <string> display-family: "Segoe UI";
+}
+
+export global Interaction {
+    in-out property <bool> motion-enabled: false;
+    in-out property <bool> allow-search-focus: true;
+    in-out property <int> search-generation: 0;
+    in-out property <length> target-y: 0px;
+    in-out property <int> target-generation: 0;
+    in-out property <bool> hotkeys-editable: false;
+    in-out property <bool> keyboard-mode: false;
+    in-out property <bool> editable: false;
+    in-out property <string> highlight: "";
+}
+
+// The one error color. A marker always accompanies it, so color is never the only cue.
+export global ErrorStyle {
+    out property <color> color: #ef6b6b;
+    out property <color> border: #ef6b6b80;
+}
+
+export component Icon inherits Image {
+    width: 17px; height: 17px;
+    image-fit: contain;
+    colorize: #888892;
+}
+
+export component ErrorMarker inherits Rectangle {
+    width: 14px; height: 14px; border-radius: 7px; background: ErrorStyle.color;
+    Rectangle { x: 6px; y: 3px; width: 2px; height: 5px; border-radius: 1px; background: #ffffff; }
+    Rectangle { x: 6px; y: 10px; width: 2px; height: 2px; border-radius: 1px; background: #ffffff; }
+}
+
+export component ClickSurface inherits Rectangle {
+    in property <string> search-label;
+    in property <bool> search-target: true;
+    private property <int> search-generation: Interaction.search-generation;
+    changed search-generation => { if root.search-target && root.search-label != "" && Interaction.highlight == root.search-label { search-reveal.restart(); } }
+    search-reveal := Timer { interval: 220ms; triggered => { self.running = false; if root.search-target && root.enabled && Interaction.allow-search-focus && Interaction.highlight != "" && Interaction.highlight == root.search-label { root.focus(); Interaction.target-y = root.absolute-position.y; Interaction.target-generation += 1; } } }
+    animate background { duration: Interaction.motion-enabled ? 120ms : 0ms; easing: ease-out; }
+    animate border-color { duration: Interaction.motion-enabled ? 100ms : 0ms; easing: ease-out; }
+    callback activated;
+    out property <bool> hovered: hit.has-hover;
+    out property <bool> pressed: hit.pressed;
+    out property <bool> focused: keys.has-focus && Interaction.keyboard-mode;
+    in property <bool> enabled: true;
+    in property <color> focus-color: #ff6060;
+    accessible-role: button;
+    forward-focus: keys;
+    keys := FocusScope {
+        enabled: root.enabled;
+        key-pressed(event) => {
+            if event.text == Key.Tab { Interaction.keyboard-mode = true; }
+            if event.text == "\n" || event.text == " " { Interaction.keyboard-mode = true; root.activated(); return accept; }
+            return reject;
+        }
+    }
+    hit := TouchArea {
+        enabled: root.enabled;
+        mouse-cursor: pointer;
+        clicked => { Interaction.keyboard-mode = false; keys.focus(); root.activated(); }
+    }
+    @children
+    Rectangle {
+        background: transparent; border-radius: parent.border-radius;
+        border-width: root.focused ? 2px : 0px;
+        border-color: root.focus-color;
+    }
+}
+
+export component SelectionSurface inherits ClickSurface {
+    search-target: selected;
+    in property <bool> selected;
+    focus-color: #ff6060;
+    border-width: selected ? 2px : 1px;
+    border-color: selected ? #d92f2f : self.hovered ? #ffffff30 : #ffffff14;
+    background: self.pressed ? #ffffff12 : self.hovered ? #ffffff0a : #ffffff03;
+}
+
+export component NavItem inherits ClickSurface {
+    in property <string> label;
+    in property <image> icon;
+    in property <bool> selected;
+    in property <bool> has-error;
+    height: 36px; border-radius: 8px;
+    accessible-label: label;
+    background: self.pressed ? #d92f2f48 : selected ? (self.hovered ? #d92f2f3d : #d92f2f24) : (self.hovered ? #ffffff0f : transparent);
+    Icon { source: root.icon; x: 10px; y: 9.5px; colorize: root.selected ? #ff6060 : #666670; }
+    Text {
+        x: 37px; y: 0px; width: parent.width - (root.has-error ? 64px : 42px); height: parent.height;
+        text: root.label;
+        color: root.selected ? #f1f1f2 : root.hovered ? #c8c8d0 : #888892;
+        font-size: 14px; font-weight: root.selected ? 600 : 500; vertical-alignment: center; overflow: elide;
+    }
+    ErrorMarker { visible: root.has-error; x: parent.width - 24px; y: 11px; }
+}
+
+export component SectionHeader inherits Rectangle {
+    in property <string> label;
+    in property <string> search-label: label;
+    private property <int> search-generation: Interaction.search-generation;
+    changed search-generation => { if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.search-label { reveal.restart(); } }
+    reveal := Timer { interval: 220ms; triggered => { self.running = false; if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.search-label { Interaction.target-y = root.absolute-position.y; Interaction.target-generation += 1; } } }
+    height: 38px;
+    Text {
+        x: 8px; y: 12px; height: 18px; width: parent.width - 16px;
+        text: root.label;
+        color: #a1a1ab; font-size: 12px; font-weight: 600; letter-spacing: 1.6px;
+        vertical-alignment: center;
+    }
+}
+
+export component Card inherits Rectangle {
+    in property <length> vertical-padding: 4px;
+    in property <length> row-spacing: 0px;
+    background: #111113; border-radius: 12px;
+    vertical-stretch: 0;
+    VerticalLayout {
+        padding-left: 8px; padding-right: 8px;
+        padding-top: root.vertical-padding; padding-bottom: root.vertical-padding;
+        spacing: root.row-spacing;
+        @children
+    }
+}
+
+export component Divider inherits Rectangle { height: 1px; background: #232329; }
+
+export component Reveal inherits Rectangle {
+    in property <bool> expanded;
+    in property <length> spacing: 0px;
+    clip: true;
+    private property <length> reveal-height: expanded ? content.preferred-height : 0px;
+    min-height: reveal-height; max-height: reveal-height; preferred-height: reveal-height;
+    animate reveal-height { duration: Interaction.motion-enabled ? 180ms : 0ms; easing: ease-out; }
+    content := VerticalLayout { visible: root.expanded; width: parent.width; spacing: root.spacing; @children }
+}
+
+export component AccentSwitch inherits Rectangle {
+    in property <bool> enabled: true;
+    callback edited;
+    in-out property <bool> checked;
+    in property <string> label;
+    opacity: root.enabled ? 1 : 0.45;
+    width: 44px; height: 24px;
+    forward-focus: control;
+    border-radius: 12px;
+    background: checked ? (hover.has-hover ? #e84040 : #d92f2f) : (hover.has-hover ? #ffffff2e : #ffffff1a);
+    animate background { duration: Interaction.motion-enabled ? 120ms : 0ms; easing: ease-out; }
+    border-width: 1px; border-color: checked ? #0000002e : #ffffff0f;
+    drop-shadow-blur: checked ? 8px : 0px; drop-shadow-color: #d12f2f38;
+    Rectangle {
+        x: root.checked ? 26px : 4px; y: 4px; width: 16px; height: 16px;
+        border-radius: 8px; background: #ffffff;
+        drop-shadow-offset-y: 1px; drop-shadow-blur: 4px; drop-shadow-color: #00000052;
+        animate x { duration: Interaction.motion-enabled ? 180ms : 0ms; easing: ease-out; }
+    }
+    control := Switch {
+        enabled: Interaction.editable && root.enabled;
+        width: 44px; height: 24px; opacity: 0; checked <=> root.checked;
+        accessible-label: root.label;
+        toggled => { Interaction.keyboard-mode = false; self.focus(); root.edited(); }
+    }
+    hover := TouchArea {
+        enabled: Interaction.editable && root.enabled;
+        mouse-cursor: pointer;
+        clicked => {
+            Interaction.keyboard-mode = false;
+            control.focus();
+            root.checked = !root.checked;
+            root.edited();
+        }
+    }
+    Rectangle {
+        x: -3px; y: -3px; width: parent.width + 6px; height: parent.height + 6px;
+        background: transparent; border-radius: 15px;
+        border-width: control.has-focus && Interaction.keyboard-mode ? 2px : 0px; border-color: #ff6060;
+    }
+}
+
+
+export component InlineError inherits Rectangle {
+    in property <string> message;
+    in property <length> horizontal-inset: 16px;
+    visible: root.message != "";
+    min-width: 0px; preferred-width: 0px; max-width: 65535px;
+    height: root.message == "" ? 0px : explanation.min-height + 12px;
+    accessible-role: text; accessible-label: root.message;
+    ErrorMarker { x: root.horizontal-inset; y: 4px; }
+    explanation := VerticalLayout {
+        x: root.horizontal-inset + 20px; y: 2px; width: parent.width - 2 * root.horizontal-inset - 20px;
+        alignment: start;
+        Text { text: root.message; color: ErrorStyle.color; font-size: 13px; wrap: word-wrap; min-width: 0px; }
+    }
+}
+
+export component FieldLabel inherits Rectangle {
+    in property <string> label;
+    in property <int> weight: 500;
+    min-width: 0px; preferred-width: 0px; max-width: 65535px; horizontal-stretch: 1;
+    label-text := Text { x: 0px; y: 0px; width: root.width; height: root.height; text: root.label; color: #f1f1f2; font-size: 14px; font-weight: root.weight; vertical-alignment: center; overflow: elide; }
+}
+
+export component ToggleRow inherits Rectangle {
+    private property <int> search-generation: Interaction.search-generation;
+    changed search-generation => { if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { reveal.restart(); } }
+    reveal := Timer { interval: 220ms; triggered => { self.running = false; if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { switch-control.focus(); Interaction.target-y = root.absolute-position.y; Interaction.target-generation += 1; } } }
+    in property <bool> enabled: true;
+    in property <string> error;
+    callback edited;
+    in property <string> label;
+    in-out property <bool> checked;
+    height: 48px + error-message.height;
+    border-radius: 8px;
+    border-width: Interaction.highlight == label ? 1px : 0px;
+    border-color: #ff60604d;
+    background: Interaction.highlight == label ? #ffffff06 : transparent;
+    animate background { duration: Interaction.motion-enabled ? 140ms : 0ms; }
+    animate border-color { duration: Interaction.motion-enabled ? 140ms : 0ms; }
+    HorizontalLayout {
+        height: 48px;
+        padding-left: 16px; padding-right: 16px; spacing: 16px;
+        FieldLabel { label: root.label; weight: 600; }
+        switch-control := AccentSwitch { enabled: root.enabled; y: 12px; label: root.label; checked <=> root.checked; edited => { root.edited(); } }
+    }
+    error-message := InlineError { y: 48px; width: parent.width; message: root.error; }
+}
+
+/// A live input level under a picker, so a silent microphone shows before a recording.
+export component LevelRow inherits Rectangle {
+    in property <string> label;
+    in property <float> level;
+    in property <string> problem;
+    min-width: 0px; preferred-width: 0px; max-width: 65535px;
+    height: 34px + problem-message.height;
+    accessible-role: progress-indicator; accessible-label: root.label;
+    accessible-value-minimum: 0; accessible-value-maximum: 100; accessible-value: round(root.level * 100);
+    Text { x: 16px; y: 0px; height: 26px; text: root.label; color: #a1a1ab; font-size: 13px; vertical-alignment: center; }
+    track := Rectangle {
+        x: parent.width * 0.55 - 16px; y: 10px; width: parent.width * 0.45; height: 6px;
+        border-radius: 3px; background: #ffffff14;
+        Rectangle {
+            x: 0px; y: 0px; height: parent.height; border-radius: 3px;
+            width: parent.width * root.level;
+            background: #e8e8ea;
+            animate width { duration: Interaction.motion-enabled ? 60ms : 0ms; }
+        }
+    }
+    problem-message := InlineError { y: 30px; width: parent.width; message: root.problem; }
+}
+
+export component SelectField inherits Rectangle {
+    callback edited;
+    in property <[string]> options;
+    in property <string> label;
+    in-out property <int> current-index: 0;
+    private property <int> active-index: 0;
+    height: 34px; border-radius: 8px;
+    background: trigger.pressed ? #ffffff26 : trigger.hovered ? #ffffff1c : #ffffff11;
+    animate background { duration: Interaction.motion-enabled ? 120ms : 0ms; easing: ease-out; }
+    animate border-color { duration: Interaction.motion-enabled ? 100ms : 0ms; easing: ease-out; }
+    border-width: 1px; border-color: menu.is-open ? #d92f2f88 : trigger.hovered ? #ffffff2e : #ffffff17;
+    forward-focus: trigger;
+    accessible-role: combobox; accessible-label: label;
+    accessible-value: options[current-index];
+    Text { x: 10px; width: parent.width - 34px; height: parent.height; text: root.options[root.current-index]; color: #f1f1f2; font-size: 14px; vertical-alignment: center; overflow: elide; }
+    Path {
+        x: parent.width - 24px; y: 10px; width: 14px; height: 14px;
+        commands: "M4.5 5.5 L7 3.5 L9.5 5.5 M4.5 8.5 L7 10.5 L9.5 8.5";
+        stroke: #888892; stroke-width: 1.5px;
+    }
+    trigger := ClickSurface {
+        enabled: Interaction.editable;
+        background: transparent; border-radius: 8px;
+        accessible-label: root.label;
+        activated => { root.active-index = root.current-index; menu.show(); }
+    }
+    menu := PopupWindow {
+        x: 0px; y: root.height + 6px; width: root.width;
+        height: root.options.length * 34px + 8px;
+        close-policy: close-on-click-outside;
+        forward-focus: menu-keys;
+        Rectangle {
+            private property <float> entrance: 0;
+            init => { self.entrance = 1; }
+            opacity: entrance;
+            animate entrance { duration: Interaction.motion-enabled ? 140ms : 0ms; easing: ease-out; }
+            background: #222224; border-radius: 8px; border-width: 1px; border-color: #39393e;
+            drop-shadow-blur: 12px; drop-shadow-offset-y: 4px; drop-shadow-color: #00000060;
+            VerticalLayout {
+                padding: 4px; spacing: 0px;
+                for option[index] in root.options: ClickSurface {
+                    height: 34px; border-radius: 5px;
+                    accessible-label: option;
+                    background: self.hovered ? #ffffff10 : index == root.active-index ? #d92f2f20 : transparent;
+                    Icon { source: @image-url("assets/check.svg"); visible: index == root.current-index; x: 8px; y: 11px; width: 11px; height: 11px; colorize: #ff6060; }
+                    Text { x: 27px; width: parent.width - 32px; height: parent.height; text: option; color: #f1f1f2; font-size: 14px; vertical-alignment: center; overflow: elide; }
+                    // Closing destroys the popup callback context. Submit the
+                    // selected value while that context is still alive.
+                    activated => { root.current-index = index; root.edited(); menu.close(); }
+                }
+            }
+            menu-keys := FocusScope {
+                key-pressed(event) => {
+                    if event.text == Key.DownArrow { root.active-index = min(root.active-index + 1, root.options.length - 1); return accept; }
+                    if event.text == Key.UpArrow { root.active-index = max(root.active-index - 1, 0); return accept; }
+                    if event.text == "\n" { root.current-index = root.active-index; root.edited(); menu.close(); return accept; }
+                    return reject;
+                }
+            }
+        }
+    }
+}
+
+export component SelectRow inherits Rectangle {
+    private property <int> search-generation: Interaction.search-generation;
+    changed search-generation => { if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { reveal.restart(); } }
+    reveal := Timer { interval: 220ms; triggered => { self.running = false; if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { select-control.focus(); Interaction.target-y = root.absolute-position.y; Interaction.target-generation += 1; } } }
+    in property <string> error;
+    callback edited;
+    // Width comes from the card; child widths must not feed its size constraints.
+    min-width: 0px; preferred-width: 0px; max-width: 65535px;
+    in property <string> label;
+    in property <[string]> options;
+    in property <length> control-width: 180px;
+    in-out property <int> current-index: 0;
+    height: 54px + error-message.height;
+    border-radius: 8px;
+    border-width: Interaction.highlight == label ? 1px : 0px;
+    border-color: #ff60604d;
+    background: Interaction.highlight == label ? #ffffff06 : transparent;
+    animate background { duration: Interaction.motion-enabled ? 140ms : 0ms; }
+    HorizontalLayout {
+        height: 54px;
+        padding-left: 16px; padding-right: 16px; spacing: 16px;
+        FieldLabel { label: root.label; weight: 600; }
+        select-control := SelectField { y: 10px; width: min(root.control-width, (root.width - 32px) * 0.45); label: root.label; options: root.options; current-index <=> root.current-index; edited => { root.edited(); } }
+    }
+    error-message := InlineError { y: 54px; width: parent.width; message: root.error; }
+}
+
+export component ActionRow inherits ClickSurface {
+    private property <int> search-generation: Interaction.search-generation;
+    changed search-generation => { if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { reveal.restart(); } }
+    reveal := Timer { interval: 220ms; triggered => { self.running = false; if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { root.focus(); Interaction.target-y = root.absolute-position.y; Interaction.target-generation += 1; } } }
+    enabled: Interaction.editable;
+    in property <string> label;
+    in property <image> icon;
+    in property <string> suffix;
+    height: 40px; border-radius: 8px;
+    accessible-label: label;
+    border-width: Interaction.highlight == label ? 1px : 0px;
+    border-color: #ff60604d;
+    background: self.pressed ? #ffffff17 : self.hovered ? #ffffff0f : Interaction.highlight == label ? #ffffff06 : transparent;
+    HorizontalLayout {
+        padding-left: 16px; padding-right: 16px; spacing: 12px;
+        Icon { y: 12px; source: root.icon; width: 16px; height: 16px; }
+        Text { text: root.label; color: #f1f1f2; font-size: 14px; font-weight: 600; vertical-alignment: center; }
+        Text { text: root.suffix; color: #888892; font-size: 12px; horizontal-alignment: right; vertical-alignment: center; horizontal-stretch: 0; }
+    }
+}
+
+export component SmallButton inherits ClickSurface {
+    enabled: Interaction.editable;
+    in property <string> label;
+    in property <image> icon;
+    in property <bool> primary: false;
+    in property <bool> show-icon: false;
+    preferred-width: root.label == "" ? 34px : label-metrics.preferred-width + 24px + (root.show-icon ? 24px : 0px);
+    label-metrics := Text { visible: false; text: root.label; font-size: 14px; font-weight: 500; }
+    height: 34px; border-radius: 8px;
+    accessible-label: label;
+    background: primary ? (self.pressed ? #bb2525 : self.hovered ? #ee4545 : #d92f2f) : self.hovered ? #ffffff21 : #ffffff12;
+    border-width: 1px; border-color: primary ? (self.hovered ? #ff6868 : #ef4b4b) : #ffffff17;
+    animate background { duration: Interaction.motion-enabled ? 120ms : 0ms; easing: ease-out; }
+    if root.show-icon && root.label == "": Icon {
+        x: (root.width - self.width) / 2; y: (root.height - self.height) / 2;
+        source: root.icon; width: 16px; height: 16px;
+    }
+    if root.label != "": HorizontalLayout {
+        padding-left: 12px; padding-right: 12px; spacing: 8px;
+        if root.show-icon: Icon { y: (root.height - self.height) / 2; source: root.icon; width: 16px; height: 16px; }
+        Text { text: root.label; color: #f1f1f2; font-size: 14px; font-weight: 500; vertical-alignment: center; horizontal-alignment: center; }
+    }
+}
+
+export struct TokenInsertion { text: string, cursor: int, error: string }
+export struct TemplateBlock { prefix: string, token: string, start: int, end: int, tag: bool }
+export global TemplateEditing {
+    pure callback blocks(string, bool) -> [TemplateBlock];
+    pure callback caret-prefix(string, int, bool) -> string;
+    callback snap-cursor(string, int, int, bool) -> int;
+    callback insert-token(string, string, int, int, bool) -> TokenInsertion;
+    callback limit-edit(string, string, int, bool) -> TokenInsertion;
+}
+export component TextField inherits Rectangle {
+    private property <int> search-generation: Interaction.search-generation;
+    changed search-generation => { if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { reveal.restart(); } }
+    reveal := Timer { interval: 220ms; triggered => { self.running = false; if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { edit.focus(); Interaction.target-y = root.absolute-position.y; Interaction.target-generation += 1; } } }
+    public function insert(token: string) {
+        let result = TemplateEditing.insert-token(root.text, token, edit.anchor-position-byte-offset, edit.cursor-position-byte-offset, root.subfolder);
+        if result.error == "" {
+            root.text = result.text;
+            edit.set-selection-offsets(result.cursor, result.cursor);
+            root.edited();
+            edit.focus();
+        }
+    }
+    in property <bool> subfolder: false;
+    in property <bool> invalid;
+    in property <bool> focus-request;
+    changed focus-request => { if root.focus-request { edit.focus(); } }
+    callback edited;
+    in property <string> label;
+    in property <string> placeholder;
+    in property <bool> monospace: false;
+    in-out property <string> text;
+    private property <string> edit-text: text;
+    changed text => { root.edit-text = root.text; }
+    height: 34px; border-radius: 8px;
+    background: hover.has-hover ? #ffffff1c : #ffffff0f;
+    animate background { duration: Interaction.motion-enabled ? 120ms : 0ms; easing: ease-out; }
+    animate border-color { duration: Interaction.motion-enabled ? 100ms : 0ms; easing: ease-out; }
+    border-width: 1px;
+    border-color: root.invalid ? ErrorStyle.border : edit.has-focus ? #d92f2f66 : hover.has-hover ? #ffffff2e : #ffffff17;
+    forward-focus: edit;
+    hover := TouchArea {
+        enabled: Interaction.editable;
+        mouse-cursor: MouseCursor.text;
+        clicked => { edit.focus(); }
+    viewport := Rectangle {
+        x: 5px; y: (root.height - self.height) / 2; width: parent.width - 10px; height: 26px; clip: true;
+    if edit.anchor-position-byte-offset != edit.cursor-position-byte-offset: Rectangle {
+        x: edit.x + selection-start.preferred-width; y: 1px;
+        width: max(0px, selection-end.preferred-width - selection-start.preferred-width);
+        height: 24px; background: #713d45; border-radius: 2px;
+        selection-start := Text { text: TemplateEditing.caret-prefix(root.text, min(edit.anchor-position-byte-offset, edit.cursor-position-byte-offset), root.subfolder); font-size: 14px; font-family: root.monospace ? "Consolas" : Typography.text-family; visible: false; }
+        selection-end := Text { text: TemplateEditing.caret-prefix(root.text, max(edit.anchor-position-byte-offset, edit.cursor-position-byte-offset), root.subfolder); font-size: 14px; font-family: root.monospace ? "Consolas" : Typography.text-family; visible: false; }
+    }
+    for block in TemplateEditing.blocks(root.text, root.subfolder): Rectangle {
+        private property <bool> selected: min(edit.anchor-position-byte-offset, edit.cursor-position-byte-offset) < block.end && max(edit.anchor-position-byte-offset, edit.cursor-position-byte-offset) > block.start;
+        x: edit.x + prefix-size.preferred-width + (block.tag ? 1px : 0px); y: 1px;
+        width: token-size.preferred-width - (block.tag ? 2px : 0px); height: 24px;
+        border-radius: 5px; background: !block.tag ? transparent : self.selected ? #713d45 : #383842;
+        border-width: block.tag ? 1px : 0px; border-color: self.selected ? #d97783 : #666674;
+        prefix-size := Text { text: block.prefix; font-size: 14px; font-family: root.monospace ? "Consolas" : Typography.text-family; visible: false; }
+        token-size := Text { text: block.token; font-size: 14px; font-family: root.monospace ? "Consolas" : Typography.text-family; visible: false; }
+        Text {
+            width: parent.width; height: parent.height;
+            text: block.token; font-size: block.tag ? 12px : 14px; font-weight: block.tag ? 500 : 400;
+            font-family: root.monospace ? "Consolas" : Typography.text-family;
+            color: #f1f1f5; horizontal-alignment: block.tag ? center : left; vertical-alignment: center;
+        }
+    }
+    edit := TextInput {
+        private property <int> previous-cursor;
+        private property <int> resolved-cursor;
+        private property <bool> adjusting-cursor;
+        private property <length> scroll-x;
+        enabled: Interaction.editable;
+        x: min(0px, max(parent.width - self.width - self.text-cursor-width, self.scroll-x));
+        y: 3px; width: max(parent.width - self.text-cursor-width, self.preferred-width); height: 20px;
+        text <=> root.edit-text; single-line: true; color: transparent; font-size: 14px;
+        font-family: root.monospace ? "Consolas" : Typography.text-family;
+        vertical-alignment: center; selection-background-color: transparent;
+        selection-foreground-color: transparent; accessible-label: root.label;
+        cursor-position-changed(position) => {
+            if self.text == root.text && !self.adjusting-cursor && self.anchor-position-byte-offset == self.cursor-position-byte-offset {
+                let raw-cursor = self.cursor-position-byte-offset;
+                let snapped = raw-cursor == self.previous-cursor ? self.resolved-cursor : TemplateEditing.snap-cursor(root.text, raw-cursor, self.previous-cursor, root.subfolder);
+                self.previous-cursor = raw-cursor;
+                self.resolved-cursor = snapped;
+                if snapped != self.cursor-position-byte-offset {
+                    self.adjusting-cursor = true;
+                    self.set-selection-offsets(snapped, snapped);
+                    self.adjusting-cursor = false;
+                }
+            }
+            if position.x + self.scroll-x < 0px { self.scroll-x = -position.x; }
+            else if position.x + self.scroll-x > viewport.width - self.text-cursor-width { self.scroll-x = viewport.width - position.x - self.text-cursor-width; }
+        }
+        edited => {
+            let bounded = TemplateEditing.limit-edit(root.text, self.text, self.cursor-position-byte-offset, root.subfolder);
+            if bounded.text != self.text {
+                root.edit-text = bounded.text;
+                self.set-selection-offsets(bounded.cursor, bounded.cursor);
+            }
+            root.text = self.text;
+            root.edited();
+        }
+    }
+    if edit.has-focus && edit.anchor-position-byte-offset == edit.cursor-position-byte-offset: Rectangle {
+        x: edit.x + caret-prefix-size.preferred-width; y: 5px; width: 1px; height: 16px; background: #f1f1f2;
+        caret-prefix-size := Text { text: TemplateEditing.caret-prefix(root.text, edit.cursor-position-byte-offset, root.subfolder); font-size: 14px; font-family: root.monospace ? "Consolas" : Typography.text-family; visible: false; }
+    }
+    }
+    }
+    if text == "": Text { x: 5px; width: parent.width - 10px; height: parent.height; text: root.placeholder; color: #888892; font-size: 14px; vertical-alignment: center; }
+}
+
+export component ShortcutRow inherits Rectangle {
+    private property <int> search-generation: Interaction.search-generation;
+    changed search-generation => { if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { reveal.restart(); } }
+    reveal := Timer { interval: 220ms; triggered => { self.running = false; if Interaction.highlight != "" && Interaction.allow-search-focus && Interaction.highlight == root.label { capture-field.focus(); Interaction.target-y = root.absolute-position.y; Interaction.target-generation += 1; } } }
+    in property <string> error;
+    in property <bool> conflicted;
+    in property <string> label;
+    in property <bool> capturing;
+    callback capture-request;
+    in-out property <[string]> keycaps;
+    height: 58px + error-message.height;
+    min-width: 0px; preferred-width: 0px; max-width: 65535px;
+    HorizontalLayout {
+        height: 58px;
+        padding-left: 16px; padding-right: 16px; spacing: 12px;
+        FieldLabel { label: root.label; }
+        capture-field := ClickSurface {
+            enabled: (Interaction.editable && Interaction.hotkeys-editable) || root.capturing;
+            y: 9px; width: min(200px, root.width * 0.50); height: 40px; border-radius: 8px;
+            border-width: 1px;
+            border-color: root.capturing ? #e5484d : root.conflicted ? ErrorStyle.border : self.hovered ? #ffffff38 : #ffffff1c;
+            background: root.capturing ? #291d20 : self.pressed ? #ffffff18 : self.hovered ? #ffffff12 : #1b1b1f;
+            accessible-label: root.capturing ? root.label + ": " + Copy.shortcut_press : root.label;
+            activated => { root.capture-request(); }
+            if root.capturing: HorizontalLayout {
+                padding: 8px; spacing: 7px; alignment: center;
+                Rectangle {
+                    width: 6px;
+                    Rectangle { y: (parent.height - self.height) / 2; width: 6px; height: 6px; border-radius: 3px; background: #e5484d; }
+                }
+                Text {
+                    text: Copy.shortcut_press; color: #f1f1f2; font-size: 13px;
+                    vertical-alignment: center; wrap: word-wrap;
+                }
+            }
+            if !root.capturing && root.keycaps.length == 0: Text {
+                width: parent.width; height: parent.height;
+                text: "+  " + Copy.shortcut_unassigned; color: #a1a1ab; font-size: 13px;
+                horizontal-alignment: center; vertical-alignment: center;
+            }
+            if !root.capturing && root.keycaps.length > 0: HorizontalLayout { padding: 7px; spacing: 5px; alignment: start;
+                for key in root.keycaps: Rectangle {
+                    visible: key != "";
+                    width: key == "" ? 0px : key-text.preferred-width + 16px;
+                    height: 26px; border-radius: 5px; border-width: 1px; border-color: #ffffff20; background: #29292f;
+                    key-text := Text { x: 8px; height: parent.height; text: key; font-family: Typography.small-family; font-size: 13px; font-weight: 500; color: #f1f1f2; vertical-alignment: center; }
+                }
+            }
+        }
+    }
+    error-message := InlineError { y: 58px; width: parent.width; message: root.error != "" ? root.error : root.conflicted ? Copy.shortcut_conflict : ""; }
+}
