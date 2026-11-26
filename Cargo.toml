@@ -203,6 +203,6 @@ windows = { version = "0.62.2", features = [
 ] }
 
 [dev-dependencies]
-windows-core = "0.62.2" # Scripted COM capture interfaces; no desktop duplication in quiet tests
+windows-core = "0.100.0" # Scripted COM capture interfaces; no desktop duplication in quiet tests
 slint = { version = "=1.18.1", default-features = false, features = ["std", "renderer-software"] } # Headless presenter regressions only
 serial_test = "4.0.1"
