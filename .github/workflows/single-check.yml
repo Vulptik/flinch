@@ -13,6 +13,9 @@ on:
           - test:settings
           - test:installer
 
+permissions:
+  contents: read
+
 jobs:
   # Same job id as Build's test job, so rust-cache restores that job's build.
   test:

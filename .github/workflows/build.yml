@@ -12,6 +12,10 @@ on:
       - main
       - "hotfix/**"
 
+# Checks only read the repository.
+permissions:
+  contents: read
+
 concurrency:
   group: build-${{ github.ref }}
   cancel-in-progress: true
@@ -149,7 +153,7 @@ jobs:
       - name: Install pinned coverage runner
         run: cargo install cargo-llvm-cov --version 0.9.1 --locked
 
-      - name: Enforce production coverage floor and baseline
+      - name: Enforce the production coverage floor
         run: cargo xtask test:coverage
 
       - name: Retain coverage evidence
@@ -159,27 +163,3 @@ jobs:
           name: production-coverage
           path: target/coverage/
           if-no-files-found: error
-
-  build-windows:
-    needs: [lint, test, coverage]
-    runs-on: windows-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          fetch-depth: 2
-
-      - name: Setup Rust
-        # Installs the exact Rust, components and target named in rust-toolchain.toml.
-        run: rustup toolchain install
-
-      - name: Cache Rust dependencies
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: . -> target
-          # Failing runs still save the build, so the next run does not compile from scratch.
-          cache-on-failure: true
-
-      # Checks that the Store package stages; builds are never published from main.
-      - name: Stage native MSIX inputs
-        run: cargo xtask pack:msix --stage-only

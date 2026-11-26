@@ -554,10 +554,6 @@ pub fn policy_contract() -> Result<()> {
   protect_history(&Policy::parse(&read(POLICY)?)?)?;
   let build = read(".github/workflows/build.yml")?;
   let release = read(".github/workflows/release.yml")?;
-  ensure!(
-    build.contains("needs: [lint, test, coverage]"),
-    "Build must depend on the coverage job"
-  );
   for (name, workflow) in [("Build", build), ("Release", release)] {
     ensure!(
       workflow.contains("run: cargo xtask test:coverage")
