@@ -160,6 +160,9 @@ mod tests {
   #[test]
   #[cfg(windows)]
   fn both_pipes_are_drained_and_nonzero_exit_is_reported() -> Result<()> {
+    // Windows PowerShell can take many seconds to start on a busy CI runner. The deadline only
+    // bounds a hang here; how fast the child starts is not what this test checks.
+    const DEADLINE: u64 = 120;
     let out = capture(
       command("powershell.exe").args([
         "-NoProfile",
@@ -167,13 +170,13 @@ mod tests {
         "-Command",
         "[Console]::Out.Write(('a' * 100000)); [Console]::Error.Write(('b' * 100000))",
       ]),
-      10,
+      DEADLINE,
     )?;
     assert_eq!(out.len(), 100000);
     assert!(
       capture(
         command("powershell.exe").args(["-NoProfile", "-NonInteractive", "-Command", "exit 7"]),
-        10
+        DEADLINE
       )
       .is_err()
     );

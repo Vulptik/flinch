@@ -230,9 +230,17 @@ fn cached_damage_paints_match_reference_through_editing_and_crop_changes() {
           editor.metrics(&controller, rect),
         );
         controller.cursor_pos = ((button.left + 10) as f64, (button.top + 10) as f64);
+        // Toolbar tooltips appear after a real 500 ms hover and fade in on the wall clock, so a
+        // slow run would compare two paints taken at different fade levels. Treating the button as
+        // clicked keeps its tooltip quiet, as it does in the app, so only the hover highlight paints.
+        editor
+          .button_tip
+          .update(Some(12), true, std::time::Instant::now(), false);
         damage = editor.chrome_region(&controller, rect);
       },
       2 => {
+        // Off the toolbar from here on, so no tooltip can start its delay.
+        controller.cursor_pos = (300.0, 300.0);
         editor.width_open = true;
         damage = editor.chrome_region(&controller, rect);
       },
