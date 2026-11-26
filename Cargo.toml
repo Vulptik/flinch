@@ -153,7 +153,7 @@ tracing-appender = "0.2.5"
 
 # Windows API bindings. windows 0.62 is the latest release; windows-core and windows-numerics
 # stay on the 0.62-compatible versions it is built on (their 0.100 releases do not mix).
-windows-numerics = "0.3.1"
+windows-numerics = "0.100.0"
 windows = { version = "0.62.2", features = [
     # Foundation, COM and WinRT
     "Foundation",
