@@ -40,7 +40,7 @@ function Get-Extensions {
 }
 function Build-Bundle {
     param([string]$Msi,[string]$Output,[string]$BundleSource,[string]$Product,[hashtable]$Runtime)
-    $defines = @{Version=$Version;ProductCode=$Product;Icon="$taskRoot/icons/icon.ico";CustomUI="$target/flinch-installer.exe";Bridge="$tools/native/flinch_burn.dll";Msi=$Msi;VcRedist=$Runtime.file;VcVersion=$Runtime.version;Logo="$taskRoot/icons/InstallerLogo.scale-300.png"}
+    $defines = @{Version=$Version;ProductCode=$Product;Icon="$taskRoot/icons/icon.ico";CustomUI="$target/flinch-installer.exe";Bridge="$tools/native/flinch_burn.dll";Msi=$Msi;VcRedist=$Runtime.file;VcVersion=$Runtime.version;Logo="$taskRoot/icons/InstallerLogo.scale-300.png";Prerequisite="$taskRoot/windows/installer/prerequisite"}
     $toolArgs = @('build','-acceptEula','wix7','-arch','x64') + (Get-Extensions)
     foreach ($key in $defines.Keys) { $toolArgs += @('-d',"$key=$($defines[$key])") }
     Invoke-Tool $wix ($toolArgs + @('-o',$Output,$BundleSource))

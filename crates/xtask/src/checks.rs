@@ -190,6 +190,45 @@ fn config() -> Result<()> {
   Ok(())
 }
 
+/// The prerequisite screen's copy: every installer language has a file with the same string ids,
+/// none empty, and the bundle ships each translation.
+fn prerequisite_copy(bundle: &str) -> Result<()> {
+  let string = re(r#"<String Id="([^"]+)" Value="([^"]*)""#)?;
+  let ids = |locale: &str| -> Result<BTreeSet<String>> {
+    let text = read(format!("windows/installer/prerequisite/{locale}.wxl"))?;
+    let mut ids = BTreeSet::new();
+    for found in string.captures_iter(&text) {
+      ensure!(
+        !found[2].trim().is_empty(),
+        "Empty prerequisite copy {locale}/{}",
+        &found[1]
+      );
+      ensure!(
+        ids.insert(found[1].to_string()),
+        "Repeated prerequisite copy {locale}/{}",
+        &found[1]
+      );
+    }
+    Ok(ids)
+  };
+  let english = ids("en")?;
+  ensure!(
+    english.contains("Title") && english.contains("InstallLicenseTerms"),
+    "Prerequisite copy is incomplete"
+  );
+  for locale in ["fr", "de", "es", "it"] {
+    ensure!(
+      ids(locale)? == english,
+      "Prerequisite copy ids differ: {locale}"
+    );
+    ensure!(
+      bundle.contains(&format!("SourceFile=\"$(var.Prerequisite)\\{locale}.wxl\"")),
+      "Bundle does not ship the {locale} prerequisite copy"
+    );
+  }
+  Ok(())
+}
+
 fn installer_shutdown_contract(xml: &str, element: &str, name_attribute: &str) -> Result<()> {
   for (property, value) in [
     ("MSIRESTARTMANAGERCONTROL", "0"),
@@ -242,6 +281,16 @@ pub fn installer() -> Result<()> {
     "Burn",
   )?;
   ensure!(re(r#"<BootstrapperApplication\b(?:[^>]*Id="FlinchUI"[^>]*Secondary="yes"|[^>]*Secondary="yes"[^>]*Id="FlinchUI")[^>]*>"#)?.is_match(&bundle), "Custom UI must be secondary");
+  require(
+    &bundle,
+    &[
+      "ThemeFile=\"$(var.Prerequisite)\\wixpreq.thm\"",
+      "LocalizationFile=\"$(var.Prerequisite)\\en.wxl\"",
+      "bal:PrereqLicenseUrl=\"https://",
+    ],
+    "Prerequisite screen",
+  )?;
+  prerequisite_copy(&bundle)?;
   let msi = read("windows/installer/Package.wxs")?;
   installer_shutdown_contract(&msi, "Property", "Id")?;
   require(

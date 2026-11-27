@@ -2,7 +2,15 @@
   <Bundle Name="Flinch" Manufacturer="Flinch" Version="$(var.Version).0" UpgradeCode="D9C9E484-92BB-479F-9B04-307BD6BE41DE" IconSourceFile="$(var.Icon)">
     <BootstrapperApplication Id="FlinchUI" SourceFile="$(var.CustomUI)" Secondary="yes">
       <Payload SourceFile="$(var.Bridge)" />
-      <bal:WixPrerequisiteBootstrapperApplication LogoFile="$(var.Logo)" />
+      <!-- The prerequisite screen reads <language id>\wixpreq.wxl for the Windows display
+           language, falling back to English. One entry per Windows display language. -->
+      <Payload Id="PrerequisiteCopy1036" Name="1036\wixpreq.wxl" SourceFile="$(var.Prerequisite)\fr.wxl" />
+      <Payload Id="PrerequisiteCopy3084" Name="3084\wixpreq.wxl" SourceFile="$(var.Prerequisite)\fr.wxl" />
+      <Payload Id="PrerequisiteCopy1031" Name="1031\wixpreq.wxl" SourceFile="$(var.Prerequisite)\de.wxl" />
+      <Payload Id="PrerequisiteCopy3082" Name="3082\wixpreq.wxl" SourceFile="$(var.Prerequisite)\es.wxl" />
+      <Payload Id="PrerequisiteCopy2058" Name="2058\wixpreq.wxl" SourceFile="$(var.Prerequisite)\es.wxl" />
+      <Payload Id="PrerequisiteCopy1040" Name="1040\wixpreq.wxl" SourceFile="$(var.Prerequisite)\it.wxl" />
+      <bal:WixPrerequisiteBootstrapperApplication LogoFile="$(var.Logo)" ThemeFile="$(var.Prerequisite)\wixpreq.thm" LocalizationFile="$(var.Prerequisite)\en.wxl" />
     </BootstrapperApplication>
     <Variable Name="InstallFolder" Type="string" Value="" Persisted="yes" />
     <Variable Name="FlinchMsiProductCode" Type="string" Value="$(var.ProductCode)" />
@@ -11,7 +19,7 @@
     <util:RegistrySearch Id="RuntimeVersionSearch" Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" Value="Version" Variable="RuntimeVersion" Result="value" Bitness="always64" />
     <util:RegistrySearch Id="RuntimeInstalledSearch" Root="HKLM" Key="SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64" Value="Installed" Variable="RuntimeInstalled" Result="value" Bitness="always64" />
     <Chain>
-      <ExePackage Id="VisualCppRuntime" SourceFile="$(var.VcRedist)" DisplayName="Microsoft Visual C++ Runtime" DetectCondition="RuntimeInstalled = 1 AND RuntimeVersion &gt;= v$(var.VcVersion)" InstallArguments="/install /quiet /norestart" PerMachine="yes" Permanent="yes" Vital="yes" Cache="remove" bal:PrereqPackage="yes">
+      <ExePackage Id="VisualCppRuntime" SourceFile="$(var.VcRedist)" DisplayName="Microsoft Visual C++ Runtime" DetectCondition="RuntimeInstalled = 1 AND RuntimeVersion &gt;= v$(var.VcVersion)" InstallArguments="/install /quiet /norestart" PerMachine="yes" Permanent="yes" Vital="yes" Cache="remove" bal:PrereqPackage="yes" bal:PrereqLicenseUrl="https://visualstudio.microsoft.com/license-terms/vs2026-ga-visualcpp-v14-redist-runtime/">
         <ExitCode Value="0" Behavior="success" />
         <ExitCode Value="3010" Behavior="scheduleReboot" />
         <ExitCode Value="1641" Behavior="forceReboot" />

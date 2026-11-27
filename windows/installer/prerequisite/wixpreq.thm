@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flinch's layout for WiX's prerequisite screen, based on WiX's wixpreq.thm (MS-RL, see
+     WiX-LICENSE.txt). It keeps Windows' own colors: the title bar and buttons are native controls
+     that always follow Windows, so a dark body would clash with them. -->
+<Theme xmlns="http://wixtoolset.org/schemas/v4/thmutil">
+    <Font Id="0" Height="-12" Weight="400" Foreground="windowtext" Background="window">Segoe UI</Font>
+    <Font Id="1" Height="-20" Weight="600" Foreground="windowtext" Background="window">Segoe UI</Font>
+    <Font Id="2" Height="-12" Weight="400" Foreground="graytext" Background="window">Segoe UI</Font>
+
+    <Window Width="480" Height="230" HexStyle="100a0000" FontId="0" Caption="#(loc.Caption)">
+        <ImageControl X="20" Y="20" Width="44" Height="44" ImageFile="wixpreq.png" Visible="yes"/>
+        <Label X="80" Y="20" Width="-20" Height="56" FontId="1" Visible="yes" DisablePrefix="yes">#(loc.Title)</Label>
+
+        <Page Name="Help">
+            <Label X="20" Y="84" Width="-20" Height="20" FontId="0" DisablePrefix="yes">#(loc.HelpHeader)</Label>
+            <Label X="20" Y="108" Width="-20" Height="-56" FontId="2" DisablePrefix="yes">#(loc.HelpText)</Label>
+            <Button Name="HelpCloseButton" X="-20" Y="-16" Width="88" Height="28" TabStop="yes" FontId="0">
+                <Text>#(loc.HelpCloseButton)</Text>
+                <CloseWindowAction />
+            </Button>
+        </Page>
+        <Page Name="Install">
+            <Label X="20" Y="84" Width="-20" Height="40" FontId="2" DisablePrefix="yes">#(loc.InstallDetail)</Label>
+            <Hypertext Name="EulaHyperlink" X="20" Y="130" Width="-20" Height="20" TabStop="yes" FontId="0">#(loc.InstallLicenseTerms)</Hypertext>
+            <Button Name="InstallButton" X="-116" Y="-16" Width="88" Height="28" TabStop="yes" FontId="0">#(loc.InstallAcceptAndInstallButton)</Button>
+            <Button Name="InstallDeclineButton" X="-20" Y="-16" Width="88" Height="28" TabStop="yes" FontId="0">
+                <Text>#(loc.InstallDeclineButton)</Text>
+                <CloseWindowAction />
+            </Button>
+        </Page>
+        <Page Name="Progress">
+            <Label X="20" Y="84" Width="-20" Height="20" FontId="0" DisablePrefix="yes">#(loc.ProgressHeader)</Label>
+            <Progressbar Name="OverallCalculatedProgressbar" X="20" Y="112" Width="-20" Height="8" />
+            <Button Name="ProgressCancelButton" X="-20" Y="-16" Width="88" Height="28" TabStop="yes" FontId="0">#(loc.ProgressCancelButton)</Button>
+        </Page>
+        <Page Name="Success">
+            <Label X="20" Y="84" Width="-20" Height="20" FontId="0" DisablePrefix="yes">
+                <Text>#(loc.SuccessHeader)</Text>
+            </Label>
+            <Label X="20" Y="108" Width="-20" Height="40" FontId="2" DisablePrefix="yes">
+                <Text>#(loc.SuccessRestartText)</Text>
+            </Label>
+            <Button Name="SuccessRestartButton" X="-116" Y="-16" Width="88" Height="28" TabStop="yes" FontId="0" HideWhenDisabled="yes">#(loc.SuccessRestartButton)</Button>
+            <Button Name="SuccessCloseButton" X="-20" Y="-16" Width="88" Height="28" TabStop="yes" FontId="0">
+                <Text>#(loc.SuccessCloseButton)</Text>
+                <CloseWindowAction />
+            </Button>
+        </Page>
+        <Page Name="Failure">
+            <Label X="20" Y="84" Width="-20" Height="20" FontId="0" DisablePrefix="yes">#(loc.FailureHeader)</Label>
+            <Hypertext Name="FailureLogFileLink" X="20" Y="108" Width="-20" Height="36" FontId="2" TabStop="yes" HideWhenDisabled="yes">#(loc.FailureLogLinkText)</Hypertext>
+            <Hypertext Name="FailureMessageText" X="20" Y="144" Width="-20" Height="20" FontId="2" TabStop="yes" HideWhenDisabled="yes"/>
+            <Label X="20" Y="-52" Width="-20" Height="20" FontId="2" DisablePrefix="yes" VisibleCondition="WixStdBARestartRequired">#(loc.FailureRestartText)</Label>
+            <Button Name="FailureRestartButton" X="-116" Y="-16" Width="88" Height="28" TabStop="yes" FontId="0" HideWhenDisabled="yes">#(loc.FailureRestartButton)</Button>
+            <Button Name="FailureCloseButton" X="-20" Y="-16" Width="88" Height="28" TabStop="yes" FontId="0">
+                <Text>#(loc.FailureCloseButton)</Text>
+                <CloseWindowAction />
+            </Button>
+        </Page>
+    </Window>
+</Theme>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Flinch's copy for WiX's prerequisite screen, based on WiX's wixpreq.wxl (MS-RL, see
+     WiX-LICENSE.txt). -->
+<WixLocalization Culture="es-es" Language="3082" xmlns="http://wixtoolset.org/schemas/v4/wxl">
+  <String Id="Caption" Value="Instalación de Flinch" />
+  <String Id="Title" Value="Flinch necesita el entorno de Microsoft Visual C++" />
+  <String Id="NonPrereqTitle" Value="Instalación de Flinch" />
+  <String Id="ConfirmCancelMessage" Value="¿Cancelar la instalación?" />
+  <String Id="HelpHeader" Value="Ayuda de la instalación" />
+  <String Id="HelpText" Value="/passive | /quiet - interfaz mínima o ninguna, sin preguntas.&#xA;/norestart - no reiniciar nunca Windows; de forma predeterminada, la instalación pregunta antes.&#xA;/log log.txt - escribir el registro en este archivo; de forma predeterminada, va a %TEMP%." />
+  <String Id="HelpCloseButton" Value="&amp;Cerrar" />
+  <String Id="InstallDetail" Value="Este componente gratuito de Microsoft permite que Flinch funcione. Lo comparten otras aplicaciones y sigue instalado si desinstala Flinch." />
+  <String Id="InstallLicenseTerms" Value="Al instalar, acepta los &lt;a href=&quot;#&quot;&gt;términos de licencia&lt;/a&gt; de Microsoft." />
+  <String Id="InstallAcceptAndInstallButton" Value="&amp;Instalar" />
+  <String Id="InstallDeclineButton" Value="Cancelar" />
+  <String Id="ProgressHeader" Value="Instalando el entorno de Microsoft Visual C++…" />
+  <String Id="ProgressLabel" Value="Instalando:" />
+  <String Id="ProgressCancelButton" Value="Cancelar" />
+  <String Id="SuccessHeader" Value="Entorno de Microsoft Visual C++ instalado" />
+  <String Id="SuccessLayoutHeader" Value="Archivos copiados" />
+  <String Id="SuccessRestartText" Value="Reinicie Windows para continuar con la instalación de Flinch." />
+  <String Id="SuccessRestartButton" Value="&amp;Reiniciar" />
+  <String Id="SuccessCloseButton" Value="&amp;Cerrar" />
+  <String Id="FailureHeader" Value="Error de instalación" />
+  <String Id="FailureLayoutHeader" Value="No se pudieron copiar los archivos" />
+  <String Id="FailureLogLinkText" Value="No se pudo instalar el entorno de Microsoft Visual C++. Consulte el &lt;a href=&quot;#&quot;&gt;registro de instalación&lt;/a&gt; para más detalles." />
+  <String Id="FailureRestartText" Value="Reinicie Windows para terminar de deshacer los cambios." />
+  <String Id="FailureRestartButton" Value="&amp;Reiniciar" />
+  <String Id="FailureCloseButton" Value="&amp;Cerrar" />
+  <String Id="PREREQBAINFINITELOOPErrorMessage" Value="La instalación de Flinch no pudo iniciarse, aunque el entorno de Microsoft Visual C++ está instalado." />
+  <String Id="FilesInUseTitle" Value="Archivos en uso" />
+  <String Id="FilesInUseLabel" Value="Estas aplicaciones usan archivos que deben actualizarse:" />
+  <String Id="FilesInUseNetfxCloseRadioButton" Value="Cerrar las &amp;aplicaciones." />
+  <String Id="FilesInUseCloseRadioButton" Value="Cerrar las &amp;aplicaciones e intentar reiniciarlas." />
+  <String Id="FilesInUseDontCloseRadioButton" Value="&amp;No cerrar las aplicaciones. Habrá que reiniciar Windows." />
+  <String Id="FilesInUseRetryButton" Value="&amp;Reintentar" />
+  <String Id="FilesInUseIgnoreButton" Value="&amp;Omitir" />
+  <String Id="FilesInUseExitButton" Value="&amp;Salir" />
+</WixLocalization>
