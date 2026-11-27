@@ -474,6 +474,38 @@ pub fn show_window_topmost(hwnd: HWND, x: i32, y: i32, width: i32, height: i32) 
   }
 }
 
+/// Gives `hwnd` keyboard focus, so keys such as Esc reach it.
+///
+/// Windows lets a process take the foreground only right after it received input. A shortcut
+/// press counts; a window opened after a Capture Delay countdown does not, since the user's last
+/// input went to another app. Then the window shows on top without focus and Esc goes to that
+/// app. Joining the foreground thread's input queue for one call lets the activation through.
+pub fn take_foreground(hwnd: HWND) -> bool {
+  use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+  use windows::Win32::UI::WindowsAndMessaging::{
+    GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow,
+  };
+  // SAFETY: `hwnd` is a live window of this thread. The input queues stay joined only across one
+  // non-blocking activation call, and are always detached again.
+  unsafe {
+    if SetForegroundWindow(hwnd).as_bool() {
+      return true;
+    }
+    let owner = GetWindowThreadProcessId(GetForegroundWindow(), None);
+    let current = GetCurrentThreadId();
+    let attached =
+      owner != 0 && owner != current && AttachThreadInput(current, owner, true).as_bool();
+    let activated = SetForegroundWindow(hwnd).as_bool();
+    if attached {
+      let _ = AttachThreadInput(current, owner, false);
+    }
+    if !activated {
+      tracing::warn!("Windows refused to give the overlay keyboard focus");
+    }
+    activated
+  }
+}
+
 /// Clip the cursor to the bounding rect of `hwnd`.
 /// Logs a warning on failure.
 pub fn clip_cursor_to(hwnd: HWND) -> bool {

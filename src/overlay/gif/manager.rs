@@ -5,8 +5,7 @@ use std::time::{Duration, Instant};
 
 use windows::Win32::Foundation::{HWND, LPARAM, LRESULT, WPARAM};
 use windows::Win32::UI::WindowsAndMessaging::{
-  GWL_EXSTYLE, GetWindowLongPtrW, SW_HIDE, SW_SHOW, SetForegroundWindow, SetWindowLongPtrW, WM_APP,
-  WS_EX_LAYERED,
+  GWL_EXSTYLE, GetWindowLongPtrW, SW_HIDE, SW_SHOW, SetWindowLongPtrW, WM_APP, WS_EX_LAYERED,
 };
 
 use super::GifResult;
@@ -406,7 +405,7 @@ impl RecordingOverlayMode for GifRecordingMode {
     } else {
       Self::redraw(window);
       show_overlay_window(hwnd, SW_SHOW);
-      let _ = unsafe { SetForegroundWindow(hwnd) };
+      crate::overlay::gdi::window::take_foreground(hwnd);
     }
 
     crate::commands::log_speed_snapshot(

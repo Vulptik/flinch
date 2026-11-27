@@ -222,11 +222,90 @@ impl AnnotationEditor {
       return;
     }
     let painted = paint_blur(dc, self.frozen.as_ref(), self.annotations.iter(), clip)
-      .and_then(|()| draw_annotations(dc, self.annotations.iter(), (0, 0), clip));
+      .and_then(|_| draw_annotations(dc, self.annotations.iter(), (0, 0), clip));
     if let Err(error) = painted {
       tracing::error!(%error, "Failed to render drawings during a new selection");
       self.report_render_failure();
     }
+  }
+
+  /// Drawings already in the cached scene: everything except what is moving or being edited.
+  fn completed_drawings(&self) -> Vec<&Annotation> {
+    self
+      .annotations
+      .iter()
+      .filter(|drawing| {
+        self
+          .text_edit
+          .as_ref()
+          .and_then(|edit| edit.before.as_ref())
+          .is_none_or(|before| before.id != drawing.id)
+          && self
+            .moving
+            .as_ref()
+            .is_none_or(|moving| moving.before.id != drawing.id)
+          && !self
+            .group_move
+            .iter()
+            .any(|moving| moving.before.id == drawing.id)
+      })
+      .collect()
+  }
+
+  /// Paints the blur under moving and drafted drawings. A moving or drafted Blur is rebuilt
+  /// together with every Blur it touches, in drawing order, so its soft edge never shows raw
+  /// capture over a neighbour, and the completed drawings it painted over are put back.
+  fn paint_preview_blur(&self, dc: HDC, previews: &[&Annotation], clip: RECT) -> Result<()> {
+    let area = previews
+      .iter()
+      .filter(|drawing| drawing.tool == Tool::Blur)
+      .fold(None, |area, drawing| {
+        combine_bounds(area, drawing.paint_bounds())
+      })
+      .map(|area| cache::intersect(area, clip))
+      .filter(|area| area.right > area.left && area.bottom > area.top);
+    let Some(area) = area else {
+      return Ok(());
+    };
+    let touches = |drawing: &Annotation| {
+      drawing.paint_bounds().is_some_and(|bounds| {
+        let shared = cache::intersect(bounds, area);
+        shared.right > shared.left && shared.bottom > shared.top
+      })
+    };
+    // Each moving drawing keeps its place in the stack; drafts go on top.
+    let preview_of = |drawing: &Annotation| -> Option<&Annotation> {
+      self
+        .moving
+        .iter()
+        .chain(self.group_move.iter())
+        .find(|moving| moving.before.id == drawing.id)
+        .map(|moving| &moving.preview)
+    };
+    let editing = self
+      .text_edit
+      .as_ref()
+      .and_then(|edit| edit.before.as_ref())
+      .map(|before| before.id);
+    let stack: Vec<&Annotation> = self
+      .annotations
+      .iter()
+      .filter(|drawing| Some(drawing.id) != editing)
+      .map(|drawing| preview_of(drawing).unwrap_or(drawing))
+      .chain(self.draft.iter())
+      .filter(|drawing| touches(drawing))
+      .collect();
+    let Some(painted) = paint_blur(dc, self.frozen.as_ref(), stack.iter().copied(), area)? else {
+      return Ok(());
+    };
+    // The layer replaced the cached scene inside `painted`; redraw what was finished there.
+    let completed = self.completed_drawings();
+    draw_annotations(
+      dc,
+      completed.into_iter().filter(|drawing| touches(drawing)),
+      (0, 0),
+      painted,
+    )
   }
 
   fn draw_scene(
@@ -253,27 +332,9 @@ impl AnnotationEditor {
     let icon_misses = self.chrome.icon_misses;
     if !restored {
       self.paint_sample.completed_layer_rebuilds += 1;
-      let completed: Vec<&Annotation> = self
-        .annotations
-        .iter()
-        .filter(|drawing| {
-          self
-            .text_edit
-            .as_ref()
-            .and_then(|edit| edit.before.as_ref())
-            .is_none_or(|before| before.id != drawing.id)
-            && self
-              .moving
-              .as_ref()
-              .is_none_or(|moving| moving.before.id != drawing.id)
-            && !self
-              .group_move
-              .iter()
-              .any(|moving| moving.before.id == drawing.id)
-        })
-        .collect();
+      let completed = self.completed_drawings();
       let painted = paint_blur(dc, self.frozen.as_ref(), completed.iter().copied(), clip)
-        .and_then(|()| draw_annotations(dc, completed.iter().copied(), (0, 0), clip));
+        .and_then(|_| draw_annotations(dc, completed.iter().copied(), (0, 0), clip));
       if let Err(error) = painted {
         tracing::error!(%error, "Failed to render completed screenshot annotations");
         self.report_render_failure();
@@ -337,7 +398,8 @@ impl AnnotationEditor {
           .filter_map(|edit| edit.preview.as_ref()),
       )
       .collect();
-    let painted = paint_blur(dc, self.frozen.as_ref(), previews.iter().copied(), clip)
+    let painted = self
+      .paint_preview_blur(dc, &previews, clip)
       .and_then(|()| draw_annotations(dc, previews.iter().copied(), (0, 0), clip));
     if let Err(error) = painted {
       tracing::error!(%error, "Failed to render screenshot drawing draft");
@@ -608,18 +670,19 @@ impl AnnotationEditor {
 }
 
 /// Blur covers capture pixels only, so regions go down before any other drawing.
-/// The layer is rebuilt from the frozen capture, so repaints never compound.
+/// The layer is rebuilt from the frozen capture, so repaints never compound. Returns the
+/// rectangle it overwrote, if any.
 pub(super) fn paint_blur<'a>(
   dc: HDC,
   frozen: Option<&super::FrozenPixels>,
   drawings: impl Iterator<Item = &'a Annotation>,
   clip: RECT,
-) -> Result<()> {
+) -> Result<Option<RECT>> {
   use windows::Win32::Graphics::Gdi::{
     BI_RGB, BITMAPINFO, BITMAPINFOHEADER, DIB_RGB_COLORS, SetDIBitsToDevice,
   };
   let Some(frozen) = frozen else {
-    return Ok(());
+    return Ok(None);
   };
   let Some(mut layer) = crate::screenshot::blur::layer(
     &frozen.rgba,
@@ -628,7 +691,13 @@ pub(super) fn paint_blur<'a>(
     drawings,
     (clip.left, clip.top, clip.right, clip.bottom),
   ) else {
-    return Ok(());
+    return Ok(None);
+  };
+  let painted = RECT {
+    left: layer.left,
+    top: layer.top,
+    right: layer.left + layer.width,
+    bottom: layer.top + layer.height,
   };
   layer.into_opaque_bgra();
   let info = BITMAPINFO {
@@ -662,7 +731,7 @@ pub(super) fn paint_blur<'a>(
     )
   };
   anyhow::ensure!(lines != 0, "Failed to paint a blur region");
-  Ok(())
+  Ok(Some(painted))
 }
 
 /// Selection chrome hugs the drawn area, not a blur region's soft edge.

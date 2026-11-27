@@ -222,9 +222,61 @@ fn covers_are_one_undo_step_with_fresh_ids_and_respect_the_drawing_limit() {
     editor.annotations.push(copy);
   }
   editor.clear_toolbar_error();
+  // Text already covered needs no room, so it reports nothing at the limit.
   editor.cover_lines(&lines, page);
+  assert!(editor.limited.is_none());
+  let elsewhere: Vec<_> = lines
+    .iter()
+    .map(|text| line(text.left + 600, text.top, text.right + 600, text.bottom))
+    .collect();
+  editor.cover_lines(&elsewhere, page);
   assert!(matches!(editor.limited, Some(DrawingLimit::Drawings)));
   assert_eq!(editor.annotations.len(), MAX_ANNOTATIONS);
+}
+
+#[test]
+fn covering_again_adds_only_what_is_missing() {
+  let mut editor = AnnotationEditor::new("en".into());
+  let crop = [0, 0, 500, 500];
+  let lines = [line(10, 10, 100, 30), line(10, 60, 100, 80)];
+  editor.cover_lines(&lines, crop);
+  assert_eq!(editor.annotations.len(), 2);
+
+  editor.cover_lines(&lines, crop);
+  assert_eq!(editor.annotations.len(), 2, "a second press adds nothing");
+  assert!(editor.redact_notice.is_none());
+  editor.undo();
+  assert!(editor.annotations.is_empty(), "and no undo step");
+  editor.redo();
+
+  // A deleted cover comes back alone.
+  editor.annotations.remove(0);
+  editor.cover_lines(&lines, crop);
+  assert_eq!(editor.annotations.len(), 2);
+
+  // A hand-drawn Blur over everything counts; a rotated one does not.
+  editor.clear();
+  let mut big = Annotation {
+    corner_radius: 0,
+    rotation_millidegrees: 0,
+    path_transform: crate::screenshot::path::IDENTITY,
+    curve_controls: Vec::new(),
+    pen_nodes: Vec::new(),
+    label: None,
+    id: editor.next_id,
+    tool: Tool::Blur,
+    points: vec![(400, 400), (0, 0)],
+    color: COLORS[0],
+    width: 4,
+  };
+  editor.next_id += 1;
+  editor.annotations.push(big.clone());
+  editor.cover_lines(&lines, crop);
+  assert_eq!(editor.annotations.len(), 1);
+  big.rotation_millidegrees = 15_000;
+  editor.annotations[0] = big;
+  editor.cover_lines(&lines, crop);
+  assert_eq!(editor.annotations.len(), 3);
 }
 
 #[test]

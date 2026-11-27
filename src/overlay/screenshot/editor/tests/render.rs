@@ -1020,6 +1020,82 @@ fn blur_region(id: u64, points: Vec<(i32, i32)>) -> Annotation {
 }
 
 #[test]
+fn a_blur_dragged_over_another_looks_the_same_as_once_dropped() {
+  use crate::overlay::gdi::bitmap::ScreenshotBitmap;
+  use crate::overlay::selection::{Rect, SelectionInteraction};
+  use crate::overlay::selection_core::SelectionControllerState;
+  use windows::Win32::Graphics::Gdi::{DEFAULT_GUI_FONT, GetStockObject, HFONT};
+  // Large enough that the toolbar stays clear of the regions.
+  let (width, height) = (800u32, 600u32);
+  // Two-pixel stripes: any raw capture showing through a blur stands out.
+  let source: Vec<u8> = (0..width * height)
+    .flat_map(|index| {
+      let value = if (index % width / 2).is_multiple_of(2) {
+        0
+      } else {
+        255
+      };
+      [value, value, value, 255]
+    })
+    .collect();
+  let mut controller = SelectionControllerState::new(width, height, 0, 0);
+  controller.interaction = SelectionInteraction::Confirmed {
+    rect: Rect {
+      x: 0.0,
+      y: 0.0,
+      w: width as f64,
+      h: height as f64,
+    },
+    from_snap: false,
+    moving: None,
+    resizing: None,
+  };
+  let editor = || {
+    let mut editor = AnnotationEditor::new("en".into()).with_frozen_pixels(
+      crate::overlay::screenshot::editor::FrozenPixels {
+        rgba: std::sync::Arc::new(source.clone()),
+        width,
+        height,
+      },
+    );
+    editor.monitors.clear();
+    editor
+  };
+  let fixed = blur_region(1, vec![(20, 20), (100, 90)]);
+  let dragged = blur_region(2, vec![(160, 20), (220, 90)]);
+  let dropped = blur_region(2, vec![(95, 20), (155, 90)]);
+  // SAFETY: stock objects are process-owned and never released.
+  let font = unsafe { HFONT(GetStockObject(DEFAULT_GUI_FONT).0) };
+  let render = |editor: &mut AnnotationEditor| {
+    let mut bitmap = ScreenshotBitmap::from_rgba(&source, width, height).expect("bitmap");
+    editor.draw(&controller, bitmap.dc, font);
+    assert!(!editor.render_failed);
+    bitmap.to_rgba().expect("pixels")
+  };
+
+  let mut moving = editor();
+  moving.annotations = vec![fixed.clone(), dragged.clone()];
+  moving.moving = Some(ObjectMove {
+    index: 1,
+    before: dragged,
+    preview: dropped.clone(),
+    start: (190, 55),
+  });
+  let during = render(&mut moving);
+  let mut done = editor();
+  done.annotations = vec![fixed, dropped];
+  let after = render(&mut done);
+  // Inside both regions, away from the moving drawing's outline and side handle. The dropped
+  // region's soft edge falls on 77..95, over the fixed one.
+  for y in 30..80 {
+    for x in (60..88).chain(103..147) {
+      let at = (y * width as usize + x) * 4;
+      assert_eq!(during[at..at + 3], after[at..at + 3], "{x},{y}");
+    }
+  }
+}
+
+#[test]
 fn blur_regions_paint_the_frozen_capture_inside_the_clip_only() {
   use crate::overlay::gdi::bitmap::ScreenshotBitmap;
   let (width, height) = (64u32, 64u32);

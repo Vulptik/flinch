@@ -9,8 +9,7 @@ use windows::Win32::Graphics::Gdi::{
   HDC, HFONT, InvalidateRect, OUT_DEFAULT_PRECIS, ReleaseDC, SRCCOPY, SelectObject,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-  GetSystemMetrics, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SW_SHOWNOACTIVATE, SetCursor,
-  SetForegroundWindow, ShowWindow,
+  GetSystemMetrics, SM_XVIRTUALSCREEN, SM_YVIRTUALSCREEN, SW_SHOWNOACTIVATE, SetCursor, ShowWindow,
 };
 
 use crate::overlay::core::window_detection::{
@@ -277,8 +276,8 @@ pub fn initialize_selection_window(
     // SAFETY: presentation runs on this live selection window's owner thread.
     unsafe {
       let _ = ShowWindow(hwnd, SW_SHOWNOACTIVATE);
-      let _ = SetForegroundWindow(hwnd);
     }
+    crate::overlay::gdi::window::take_foreground(hwnd);
     crate::overlay::gdi::window::clip_cursor_to(hwnd)
   })
 }

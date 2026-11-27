@@ -206,12 +206,25 @@ impl AnnotationEditor {
     }
   }
 
-  /// Adds one Blur drawing per line, as one undo step.
+  /// Adds one Blur drawing per line, as one undo step. Lines a Blur already covers are skipped,
+  /// so pressing again adds nothing, and after an undo or delete only the missing covers return.
   pub(super) fn cover_lines(&mut self, lines: &[TextBox], crop: Bounds) {
     if lines.is_empty() {
       self.redact_notice = Some("annotation_error_redact_none");
       return;
     }
+    let existing: Vec<Bounds> = self.annotations.iter().filter_map(blur_bounds).collect();
+    let uncovered: Vec<TextBox> = lines
+      .iter()
+      .filter(|line| {
+        padded(line, crop).is_none_or(|cover| !existing.iter().any(|blur| contains(blur, &cover)))
+      })
+      .cloned()
+      .collect();
+    if uncovered.is_empty() {
+      return;
+    }
+    let lines = uncovered.as_slice();
     let capacity = MAX_ANNOTATIONS.saturating_sub(self.annotations.len());
     if capacity == 0 {
       self.limited = Some(DrawingLimit::Drawings);
@@ -307,18 +320,7 @@ fn detect(pixels: &[u8], frozen_width: u32, crop: Bounds, limits: &OcrLimits) ->
 /// overlaps joined, and neighbors merged into blocks until they fit `capacity` drawings.
 pub(super) fn plan(lines: &[TextBox], crop: Bounds, capacity: usize) -> Vec<Bounds> {
   let [left, top, right, bottom] = crop;
-  let mut covers: Vec<Bounds> = lines
-    .iter()
-    .map(|line| {
-      [
-        (left + line.left - PAD).max(left),
-        (top + line.top - PAD).max(top),
-        (left + line.right + PAD).min(right),
-        (top + line.bottom + PAD).min(bottom),
-      ]
-    })
-    .filter(|[l, t, r, b]| r > l && b > t)
-    .collect();
+  let mut covers: Vec<Bounds> = lines.iter().filter_map(|line| padded(line, crop)).collect();
   merge_near(&mut covers, 0);
   let mut gap = 4;
   while covers.len() > capacity.max(1) {
@@ -331,6 +333,34 @@ pub(super) fn plan(lines: &[TextBox], crop: Bounds, capacity: usize) -> Vec<Boun
   }
   covers.sort_by_key(|[l, t, ..]| (*t, *l));
   covers
+}
+
+/// One line's cover in capture pixels: padded and kept inside the crop. `None` when empty.
+fn padded(line: &TextBox, crop: Bounds) -> Option<Bounds> {
+  let [left, top, right, bottom] = crop;
+  let cover = [
+    (left + line.left - PAD).max(left),
+    (top + line.top - PAD).max(top),
+    (left + line.right + PAD).min(right),
+    (top + line.bottom + PAD).min(bottom),
+  ];
+  (cover[2] > cover[0] && cover[3] > cover[1]).then_some(cover)
+}
+
+/// The area a Blur drawing fully hides, when it is an upright, square-cornered rectangle.
+fn blur_bounds(annotation: &Annotation) -> Option<Bounds> {
+  if annotation.tool != Tool::Blur
+    || annotation.rotation_millidegrees != 0
+    || annotation.corner_radius != 0
+  {
+    return None;
+  }
+  let [(x0, y0), (x1, y1)] = [*annotation.points.first()?, *annotation.points.get(1)?];
+  Some([x0.min(x1), y0.min(y1), x0.max(x1), y0.max(y1)])
+}
+
+fn contains(outer: &Bounds, inner: &Bounds) -> bool {
+  outer[0] <= inner[0] && outer[1] <= inner[1] && outer[2] >= inner[2] && outer[3] >= inner[3]
 }
 
 /// Joins covers that overlap or lie within `gap` pixels of each other, until none do.
