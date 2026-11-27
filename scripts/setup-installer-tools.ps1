@@ -22,6 +22,10 @@ foreach ($entry in @(
     if (Test-Path (Join-Path $destination "$package.nuspec")) { continue }
     $archive = Join-Path $toolRoot "$package.zip"
     Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/$package/7.0.0/$package.7.0.0.nupkg" -OutFile $archive -TimeoutSec 60
-    Expand-Archive -LiteralPath $archive -DestinationPath $destination -Force
+    # Not Expand-Archive: with -Force, some Windows PowerShell 5.1 Archive modules call a .NET
+    # overload that .NET Framework lacks and fail. A partial folder from an earlier run goes first.
+    if (Test-Path -LiteralPath $destination) { Remove-Item -LiteralPath $destination -Recurse -Force }
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    [System.IO.Compression.ZipFile]::ExtractToDirectory($archive, $destination)
 }
 Write-Output 'Pinned WiX 7.0.0 tools are ready. No application or runtime was installed.'
